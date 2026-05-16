@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MentorPi M1 robot System Documentation</title>
+    <!-- Bootstrap CSS (Local) -->
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Obsidian Light Theme Palette */
+            --bg-color: #ffffff;
+            --text-color: #2e3338;
+            --h-color: #111111;
+            --sidebar-bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --link-color: #4a36d2;
+            --border-color: #e3e3e3;
+            --hover-bg: #eaeaec;
+            --code-bg: #f4f4f4;
+            --wiki-link-color: #8c3edb;
+        }
+        [data-theme="dark"] {
+            /* Obsidian Dark Theme Palette */
+            --bg-color: #1e1e1e;
+            --text-color: #dcddde;
+            --h-color: #ffffff;
+            --sidebar-bg: #252526;
+            --card-bg: #252526;
+            --link-color: #569cd6;
+            --border-color: #3e3e42;
+            --hover-bg: #2a2d2e;
+            --code-bg: #111111;
+            --wiki-link-color: #c586c0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            margin: 0;
+        }
+        h1, h2, h3, h4, h5 { color: var(--h-color); font-weight: 600; }
+        a { color: var(--link-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Top Navbar Styling */
+        #top-navbar {
+            height: 60px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background-color: var(--sidebar-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            transition: background-color 0.3s ease;
+        }
+        .search-container {
+            flex: 0 1 400px;
+            position: relative;
+        }
+        #search-input {
+            width: 100%;
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        #search-input:focus {
+            outline: none;
+            border-color: var(--link-color);
+            box-shadow: 0 0 0 2px rgba(74, 54, 210, 0.2);
+        }
+        #search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 2000;
+        }
+        .search-result-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .search-result-item:hover {
+            background-color: var(--hover-bg);
+        }
+        .search-result-title {
+            font-weight: 600;
+            color: var(--link-color);
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        .search-result-snippet {
+            font-size: 0.8rem;
+            color: var(--text-color);
+            opacity: 0.8;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .action-btn-top {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: background-color 0.2s ease;
+        }
+        .action-btn-top:hover {
+            background-color: var(--hover-bg);
+        }
+
+        /* Sidebar Styling */
+        #sidebar {
+            height: calc(100vh - 60px);
+            width: 240px;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            z-index: 100;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s ease;
+        }
+        #package-list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+        #sidebar .nav-link {
+            font-weight: 500;
+            color: var(--text-color);
+            padding: 8px 20px;
+            margin: 2px 10px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        #sidebar .nav-link:hover {
+            background-color: var(--hover-bg);
+            color: var(--h-color);
+        }
+        #sidebar .nav-link.active {
+            color: var(--bg-color);
+            background-color: var(--link-color);
+            font-weight: 600;
+        }
+        
+        /* Main Content Styling */
+        main {
+            margin-left: 240px;
+            margin-top: 60px;
+            padding: 40px;
+            max-width: 1000px;
+        }
+        .content-card {
+            background: var(--card-bg);
+            padding: 50px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.02);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Obsidian-like Elements */
+        .wiki-link {
+            color: var(--wiki-link-color);
+            cursor: pointer;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+        .wiki-link:hover {
+            text-decoration: underline;
+            opacity: 0.8;
+        }
+        pre {
+            background-color: var(--code-bg);
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+        }
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--link-color);
+            background-color: var(--code-bg);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        pre code { color: var(--text-color); padding: 0; background: transparent; }
+        
+        /* Mermaid Containers */
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+            background-color: var(--code-bg);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <nav id="top-navbar">
+        <div class="d-flex align-items-center gap-3">
+            <h5 style="color: var(--h-color); font-weight: 700; margin: 0; cursor: pointer;" onclick="showContent('root', document.getElementById('nav-root'))">MentorPi M1 robot</h5>
+        </div>
+        
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search documentation content..." onkeyup="handleSearch(this.value)" autocomplete="off">
+            <div id="search-results"></div>
+        </div>
+
+        <div class="nav-actions">
+            <button class="action-btn-top" onclick="toggleTheme()">🌓 Toggle Theme</button>
+        </div>
+    </nav>
+
+    <nav id="sidebar">
+        <div id="package-list-container">
+            <ul class="nav flex-column mb-auto" id="package-list">
+                <li class="nav-item mt-3">
+                    <a class="nav-link active" href="#" id="nav-root" onclick="showContent('root', this)">🏠 System Overview</a>
+                </li>
+                <li class="nav-item mt-3 mb-1 px-3" style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-color); opacity: 0.7;">Packages</li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-bringup" onclick="showContent('bringup', this)">Bringup</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-app" onclick="showContent('app', this)">App</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-peripherals" onclick="showContent('peripherals', this)">Peripherals</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-slam" onclick="showContent('slam', this)">SLAM</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-navigation" onclick="showContent('navigation', this)">Navigation</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-multi" onclick="showContent('multi', this)">Multi-Robot</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-yolov5_ros2" onclick="showContent('yolov5_ros2', this)">YOLOv5 ROS 2</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-driver" onclick="showContent('driver', this)">Driver</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-interfaces" onclick="showContent('interfaces', this)">Interfaces</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-calibration" onclick="showContent('calibration', this)">Calibration</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-large_models" onclick="showContent('large_models', this)">Large Models</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-large_models_msgs" onclick="showContent('large_models_msgs', this)">Large Models Msgs</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-simulations" onclick="showContent('simulations', this)">Simulations</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="nav-example" onclick="showContent('example', this)">Example</a></li>
+                
+                <li class="nav-item mt-3 mb-1 px-3" style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-color); opacity: 0.7;">Views</li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="nav-learning_path" onclick="showContent('learning_path', this)">🎓 Learning Path</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="nav-graph" onclick="showContent('graph', this)">🕸️ Graph View</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <div id="content-area" class="content-card">
+            <!-- Content will be rendered here -->
+        </div>
+    </main>
+
+    <script type="text/markdown" id="graph">
+# 🕸️ Workspace Dependency Graph
+
+This graph visualizes the high-level architecture and data flow between the MentorPi M1 robot ROS 2 packages.
+
+```mermaid
+graph TD
+    %% Main Nodes
+    Bringup("bringup (Master Orchestrator)")
+    Driver("driver / controller (Low-Level)")
+    Peripherals("peripherals (Sensors/Teleop)")
+    App("app (High-Level Apps)")
+    YOLO("yolov5_ros2 (Object Detect)")
+    SLAM("slam (Mapping)")
+    Nav("navigation (Nav2 Stack)")
+    Multi("multi (Coordination)")
+    LLM("large_models (AI/LLM/VLM)")
+    
+    %% Common Interfaces
+    Interfaces("interfaces / msgs")
+
+    %% Bringup Flow
+    Bringup -->|"Launch Drivers"| Driver
+    Bringup -->|"Start Sensors"| Peripherals
+    Bringup -->|"Init Services"| App
+    
+    %% Data Flow - Perception
+    Peripherals -->|"/scan_raw"| SLAM
+    Peripherals -->|"/image_raw"| YOLO
+    YOLO -->|"/object_detect"| App
+    LLM -->|"VLM Analysis"| App
+
+    %% Data Flow - Movement
+    App -->|"/cmd_vel"| Driver
+    Nav -->|"/cmd_vel"| Driver
+    Multi -->|"/cmd_vel"| Driver
+    LLM -->|"Autonomous Goals"| Nav
+    
+    %% Spatial Intelligence
+    SLAM -->|"/map"| Nav
+    Nav -->|"Leader Pose"| Multi
+    
+    %% Dependencies
+    Driver -.-> Interfaces
+    App -.-> Interfaces
+    LLM -.-> Interfaces
+    
+    %% Styling
+    style Bringup fill:#6c429c,stroke:#333,stroke-width:2px,color:#fff
+    style Driver fill:#2f74c0,stroke:#333,stroke-width:2px,color:#fff
+    style SLAM fill:#288b45,stroke:#333,stroke-width:2px,color:#fff
+    style Nav fill:#288b45,stroke:#333,stroke-width:2px,color:#fff
+    style App fill:#c94d2c,stroke:#333,stroke-width:2px,color:#fff
+    style LLM fill:#ff9800,stroke:#333,stroke-width:2px,color:#fff
+    style Interfaces fill:#607d8b,stroke:#333,stroke-width:1px,color:#fff
+```
+    </script>
+
+    <!-- Libraries (Local) -->
+    <script src="lib/marked.min.js"></script>
+    <script src="lib/mermaid.min.js"></script>
+    
+    <script>
+        const fileMap = {
+            'root': 'SYSTEM_OVERVIEW.md',
+            'learning_path': 'LEARNING_PATH.md',
+            'bringup': 'bringup.md',
+            'app': 'app.md',
+            'peripherals': 'peripherals.md',
+            'slam': 'slam.md',
+            'navigation': 'navigation.md',
+            'multi': 'multi.md',
+            'yolov5_ros2': 'yolov5_ros2.md',
+            'driver': 'driver.md',
+            'interfaces': 'interfaces.md',
+            'calibration': 'calibration.md',
+            'large_models': 'large_models.md',
+            'large_models_msgs': 'large_models_msgs.md',
+            'simulations': 'simulations.md',
+            'example': 'example.md'
+        };
+
+        let contentCache = {};
+
+        async function preloadContent() {
+            for (const id in fileMap) {
+                try {
+                    const response = await fetch(fileMap[id]);
+                    if (response.ok) {
+                        contentCache[id] = await response.text();
+                    }
+                } catch (e) {
+                    console.error(`Failed to preload ${id}:`, e);
+                }
+            }
+        }
+
+        function getMermaidTheme() {
+            return document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+        }
+        mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme() });
+
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('obsidian-theme', newTheme);
+            mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme() });
+            const activeLink = document.querySelector('.nav-link.active');
+            if (activeLink) {
+                const targetId = activeLink.id.replace('nav-', '');
+                showContent(targetId, activeLink);
+            }
+        }
+
+        const savedTheme = localStorage.getItem('obsidian-theme');
+        if (savedTheme) {
+            document.body.setAttribute('data-theme', savedTheme);
+            mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme() });
+        }
+
+        function processWikiLinks(text) {
+            return text.replace(/\[\[(.*?)\]\]/g, (match, p1) => {
+                const targetId = p1.toLowerCase().replace(/\s+/g, '_');
+                return `<a class="wiki-link" title="Navigate to ${p1}" onclick="navigateWiki('${targetId}')">[[${p1}]]</a>`;
+            });
+        }
+
+        function navigateWiki(targetId) {
+            const targetElement = document.getElementById(`nav-${targetId}`);
+            if (targetElement) {
+                showContent(targetId, targetElement);
+            } else {
+                alert(`The file for "[[${targetId}]]" is not loaded in this context.`);
+            }
+        }
+
+        function handleSearch(query) {
+            const resultsContainer = document.getElementById('search-results');
+            query = query.toLowerCase().trim();
+            
+            if (!query) {
+                resultsContainer.style.display = 'none';
+                return;
+            }
+
+            let results = [];
+            for (const id in contentCache) {
+                const content = contentCache[id].toLowerCase();
+                const index = content.indexOf(query);
+                
+                if (index !== -1) {
+                    const start = Math.max(0, index - 40);
+                    const end = Math.min(content.length, index + 60);
+                    let snippet = contentCache[id].substring(start, end).replace(/\n/g, ' ');
+                    if (start > 0) snippet = '...' + snippet;
+                    if (end < content.length) snippet = snippet + '...';
+
+                    results.push({
+                        id: id,
+                        title: id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, ' '),
+                        snippet: snippet
+                    });
+                }
+            }
+
+            if (results.length > 0) {
+                resultsContainer.innerHTML = results.map(res => `
+                    <div class="search-result-item" onclick="selectSearchResult('${res.id}')">
+                        <div class="search-result-title">${res.title}</div>
+                        <div class="search-result-snippet">${res.snippet}</div>
+                    </div>
+                `).join('');
+                resultsContainer.style.display = 'block';
+            } else {
+                resultsContainer.innerHTML = '<div class="p-3 text-center opacity-50">No results found</div>';
+                resultsContainer.style.display = 'block';
+            }
+        }
+
+        function selectSearchResult(id) {
+            const navLink = document.getElementById(`nav-${id}`);
+            showContent(id, navLink);
+            document.getElementById('search-results').style.display = 'none';
+            document.getElementById('search-input').value = '';
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-container')) {
+                document.getElementById('search-results').style.display = 'none';
+            }
+        });
+
+        async function showContent(id, element) {
+            if (!element) return;
+            const links = document.querySelectorAll('.nav-link');
+            links.forEach(link => link.classList.remove('active'));
+            element.classList.add('active');
+
+            let markdown = "";
+            if (id === 'graph') {
+                const scriptTag = document.getElementById(id);
+                if (scriptTag) markdown = scriptTag.textContent;
+            } else {
+                const filePath = fileMap[id];
+                try {
+                    const response = await fetch(filePath);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    markdown = await response.text();
+                } catch (e) {
+                    document.getElementById('content-area').innerHTML = `<p style="color: red;">Error loading ${filePath}: ${e.message}</p>`;
+                    return;
+                }
+            }
+
+            markdown = processWikiLinks(markdown);
+            const contentArea = document.getElementById('content-area');
+            contentArea.innerHTML = marked.parse(markdown);
+
+            const codeBlocks = contentArea.querySelectorAll('pre code.language-mermaid');
+            codeBlocks.forEach((block) => {
+                const mermaidDiv = document.createElement('div');
+                mermaidDiv.className = 'mermaid';
+                mermaidDiv.textContent = block.textContent;
+                block.parentElement.replaceWith(mermaidDiv);
+            });
+
+            setTimeout(() => {
+                try {
+                    mermaid.init(undefined, ".mermaid");
+                } catch (e) {
+                    console.error("Mermaid parsing error:", e);
+                }
+            }, 50);
+        }
+
+        window.onload = () => {
+            preloadContent();
+            showContent('root', document.getElementById('nav-root'));
+        };
+    </script>
+</body>
+</html>
