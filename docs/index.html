@@ -230,12 +230,96 @@
             border-radius: 12px;
             border: 1px solid var(--border-color);
         }
+
+        /* Mobile Toggle Button */
+        #sidebar-toggle {
+            display: none;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        /* Media Queries for Responsiveness */
+        @media (max-width: 992px) {
+            #sidebar-toggle {
+                display: block;
+            }
+            #sidebar {
+                left: -240px;
+                transition: left 0.3s ease;
+                z-index: 1100; /* Above backdrop, but below navbar if needed */
+            }
+            #sidebar.active {
+                left: 0;
+                box-shadow: 10px 0 25px rgba(0,0,0,0.2);
+            }
+            main {
+                margin-left: 0;
+                padding: 20px;
+            }
+            .content-card {
+                padding: 20px;
+            }
+            .search-container {
+                flex: 1;
+                margin: 0 10px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .content-card {
+                padding: 15px;
+            }
+            #top-navbar {
+                padding: 0 12px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .nav-actions {
+                display: none;
+            }
+            #top-navbar h5 {
+                font-size: 0.9rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .search-container {
+                flex: 0 1 180px;
+            }
+            #search-input {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Sidebar Backdrop */
+        #sidebar-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1050;
+        }
+        #sidebar-backdrop.active {
+            display: block;
+        }
     </style>
 </head>
 <body data-theme="dark">
+    <div id="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
     <nav id="top-navbar">
         <div class="d-flex align-items-center gap-3">
+            <button id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
             <h5 style="color: var(--h-color); font-weight: 700; margin: 0; cursor: pointer;" onclick="showContent('root', document.getElementById('nav-root'))">MentorPi M1 robot</h5>
         </div>
         
@@ -351,6 +435,13 @@ graph TD
     <script src="lib/mermaid.min.js"></script>
     
     <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            sidebar.classList.toggle('active');
+            backdrop.classList.toggle('active');
+        }
+
         const fileMap = {
             'root': 'SYSTEM_OVERVIEW.md',
             'learning_path': 'LEARNING_PATH.md',
@@ -484,6 +575,12 @@ graph TD
 
         async function showContent(id, element) {
             if (!element) return;
+
+            // Close sidebar on mobile after selection
+            if (window.innerWidth <= 992 && document.getElementById('sidebar').classList.contains('active')) {
+                toggleSidebar();
+            }
+
             const links = document.querySelectorAll('.nav-link');
             links.forEach(link => link.classList.remove('active'));
             element.classList.add('active');
