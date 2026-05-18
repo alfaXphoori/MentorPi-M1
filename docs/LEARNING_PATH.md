@@ -131,7 +131,7 @@ Instead of just running a script, learn to create a formal ROS 2 package. This i
     ```bash
     cd ~/ros2_ws
     colcon build --packages-select mycar
-    source install/setup.bash
+    source ~/.zshrc
     # To run basic drive:
     ros2 run mycar drive_node
     # To run square mission:
@@ -191,7 +191,7 @@ As your project grows, you'll want to launch multiple nodes at once (e.g., Lidar
     ```bash
     cd ~/ros2_ws
     colcon build --packages-select my_mission
-    source install/setup.bash
+    source ~/.zshrc
     ros2 launch my_mission mission.launch.py
     ```
 
