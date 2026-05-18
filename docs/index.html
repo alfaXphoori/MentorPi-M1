@@ -354,14 +354,6 @@
                 <li class="nav-item"><a class="nav-link" href="#" id="nav-large_models_msgs" onclick="showContent('large_models_msgs', this)">Large Models Msgs</a></li>
                 <li class="nav-item"><a class="nav-link" href="#" id="nav-simulations" onclick="showContent('simulations', this)">Simulations</a></li>
                 <li class="nav-item"><a class="nav-link" href="#" id="nav-example" onclick="showContent('example', this)">Example</a></li>
-                
-                <li class="nav-item mt-3 mb-1 px-3" style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-color); opacity: 0.7;">Views</li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="nav-learning_path" onclick="showContent('learning_path', this)">🎓 Learning Path</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="nav-graph" onclick="showContent('graph', this)">🕸️ Graph View</a>
-                </li>
             </ul>
         </div>
     </nav>
@@ -603,6 +595,32 @@ graph TD
 
             markdown = processWikiLinks(markdown);
             const contentArea = document.getElementById('content-area');
+            contentArea.innerHTML = marked.parse(markdown);
+
+            const codeBlocks = contentArea.querySelectorAll('pre code.language-mermaid');
+            codeBlocks.forEach((block) => {
+                const mermaidDiv = document.createElement('div');
+                mermaidDiv.className = 'mermaid';
+                mermaidDiv.textContent = block.textContent;
+                block.parentElement.replaceWith(mermaidDiv);
+            });
+
+            setTimeout(() => {
+                try {
+                    mermaid.init(undefined, ".mermaid");
+                } catch (e) {
+                    console.error("Mermaid parsing error:", e);
+                }
+            }, 50);
+        }
+
+        window.onload = () => {
+            preloadContent();
+            showContent('root', document.getElementById('nav-root'));
+        };
+    </script>
+</body>
+</html>       const contentArea = document.getElementById('content-area');
             contentArea.innerHTML = marked.parse(markdown);
 
             const codeBlocks = contentArea.querySelectorAll('pre code.language-mermaid');
