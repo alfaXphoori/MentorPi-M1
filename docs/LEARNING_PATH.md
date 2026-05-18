@@ -44,7 +44,7 @@ graph LR
     Controller -- "Throttle" --> Motors["Rear Drive Motors"]
 ```
 
-### 1.4 DIY: Create "drive_node" (Basic Movement)
+### 1.4 drive_node (Basic Movement)
 Learn to create a formal ROS 2 package and your first control node.
 
 1.  **Create the Package:**
@@ -89,7 +89,7 @@ Learn to create a formal ROS 2 package and your first control node.
     ros2 run mycar drive_node
     ```
 
-### 1.5 DIY: Create "square_move" (Sequence Logic)
+### 1.5 square_move (Sequence Logic)
 Build on your package by adding a node that follows a timed sequence to drive in a square.
 
 1.  **Write the Node:**
@@ -137,6 +137,22 @@ Build on your package by adding a node that follows a timed sequence to drive in
     cd ~/ros2_ws && colcon build --packages-select mycar
     source ~/.zshrc
     ros2 run mycar square_node
+    ```
+
+### 1.6 color_control (Vision Interaction)
+Learn to control the robot using real-time color detection from the camera.
+
+1.  **Write the Node:**
+    Create `src/mycar/mycar/color_control.py` (Refer to the source code for the optimized Mean Color version).
+    *   **Green Detected:** Starts continuous movement.
+    *   **Red Detected:** Stops the robot.
+
+2.  **Register and Run:**
+    Add `'color_control_node = mycar.color_control:main'` to `setup.py`, then build:
+    ```bash
+    cd ~/ros2_ws && colcon build --packages-select mycar
+    source ~/.zshrc
+    ros2 run mycar color_control_node
     ```
 
 ---
