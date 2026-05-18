@@ -81,10 +81,50 @@ Instead of just running a script, learn to create a formal ROS 2 package. This i
         rclpy.shutdown()
     ```
 
-3.  **Register the Node:**
-    Edit `src/mycar/setup.py` and add this line inside the `console_scripts` bracket:
+2.1 **Write the Square Movement Node (Advanced):**
+    Create another file at `src/mycar/mycar/square_move.py` to make the car drive in a square pattern:
+    ```python
+    import rclpy
+    from rclpy.node import Node
+    from geometry_msgs.msg import Twist
+    import time
+
+    class SquareMove(Node):
+        def __init__(self):
+            super().__init__('square_move')
+            self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+            self.run_square()
+
+        def run_square(self):
+            self.get_logger().info('Starting Square Movement...')
+            for i in range(4):
+                self.get_logger().info(f'Driving Side {i+1}...')
+                self.move(0.2, 0.0, 2.0)  # Forward 2s
+                self.get_logger().info(f'Turning Right...')
+                self.move(0.0, -0.5, 1.5) # Turn Right 1.5s
+            self.move(0.0, 0.0, 1.0)      # Stop
+            self.destroy_node()
+            rclpy.shutdown()
+
+        def move(self, linear_x, angular_z, duration):
+            msg = Twist()
+            msg.linear.x = linear_x
+            msg.angular.z = angular_z
+            end_time = time.time() + duration
+            while time.time() < end_time:
+                self.publisher_.publish(msg)
+                time.sleep(0.1)
+
+    def main(args=None):
+        rclpy.init(args=args)
+        node = SquareMove()
+    ```
+
+3.  **Register the Nodes:**
+    Edit `src/mycar/setup.py` and add these lines inside the `console_scripts` bracket:
     ```python
     'drive_node = mycar.drive_node:main',
+    'square_node = mycar.square_move:main',
     ```
 
 4.  **Build and Run:**
@@ -92,7 +132,67 @@ Instead of just running a script, learn to create a formal ROS 2 package. This i
     cd ~/ros2_ws
     colcon build --packages-select mycar
     source install/setup.bash
+    # To run basic drive:
     ros2 run mycar drive_node
+    # To run square mission:
+    ros2 run mycar square_node
+    ```
+
+### 1.5 Professional Setup: Launch Files & Structure
+As your project grows, you'll want to launch multiple nodes at once (e.g., Lidar + Driver + Logic).
+
+1.  **Create a New Package with Launch Support:**
+    ```bash
+    cd ~/ros2_ws/src
+    ros2 pkg create --build-type ament_python my_mission --dependencies rclpy geometry_msgs
+    ```
+
+2.  **Create a Launch Directory:**
+    Inside your package, create a folder for launch files:
+    ```bash
+    mkdir -p ~/ros2_ws/src/my_mission/launch
+    ```
+
+3.  **Update `setup.py` for Launch Files:**
+    To make ROS 2 see your launch files, you must add them to `data_files` in `src/my_mission/setup.py`:
+    ```python
+    import os
+    from glob import glob
+    # ... inside setup() ...
+    data_files=[
+        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*'))),
+    ],
+    ```
+
+4.  **Create a Launch File (`mission.launch.py`):**
+    Save this in `src/my_mission/launch/`:
+    ```python
+    from launch import LaunchDescription
+    from launch_ros.actions import Node
+
+    def generate_launch_description():
+        return LaunchDescription([
+            Node(
+                package='mycar',
+                executable='drive_node',
+                name='driver'
+            ),
+            Node(
+                package='mycar',
+                executable='square_node',
+                name='mission_logic'
+            )
+        ])
+    ```
+
+5.  **Build and Run with Launch:**
+    ```bash
+    cd ~/ros2_ws
+    colcon build --packages-select my_mission
+    source install/setup.bash
+    ros2 launch my_mission mission.launch.py
     ```
 
 ---
