@@ -28,6 +28,7 @@ setup(
             'hand_control_node = mycar.hand_control:main',
             'color_control_node = mycar.color_control:main',
             'lane_detect_node = mycar.lane_detect_node:main',
+            'mission_control_node = mycar.mission_control:main',
         ],
     },
 )
