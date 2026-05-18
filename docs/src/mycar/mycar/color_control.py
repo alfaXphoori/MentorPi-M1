@@ -28,58 +28,68 @@ class ColorControlNode(Node):
         self.timer = self.create_timer(0.1, self.timer_callback)
 
         # Define Color Ranges (HSV)
-        # Green range
         self.green_lower = np.array([35, 100, 100])
         self.green_upper = np.array([85, 255, 255])
-        
-        # Red range (Red wraps around in HSV, so we check two ranges)
         self.red_lower1 = np.array([0, 100, 100])
         self.red_upper1 = np.array([10, 255, 255])
         self.red_lower2 = np.array([160, 100, 100])
         self.red_upper2 = np.array([180, 255, 255])
 
-        self.get_logger().info('Color Control Node Started. Green: Start, Red: Stop.')
+        # ROI Parameters (Center Rectangle)
+        self.roi_size = 200 # Square size of 200x200 pixels
+
+        self.get_logger().info('Color Control with ROI Started. Show colors inside the rectangle.')
 
     def timer_callback(self):
         self.publisher_.publish(self.current_twist)
 
     def image_callback(self, msg):
         cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-        hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+        height, width, _ = cv_image.shape
         
-        # Create masks
-        green_mask = cv2.inRange(hsv, self.green_lower, self.green_upper)
-        red_mask1 = cv2.inRange(hsv, self.red_lower1, self.red_upper1)
-        red_mask2 = cv2.inRange(hsv, self.red_lower2, self.red_upper2)
+        # Define ROI coordinates (Center of screen)
+        x1 = int(width/2 - self.roi_size/2)
+        y1 = int(height/2 - self.roi_size/2)
+        x2 = x1 + self.roi_size
+        y2 = y1 + self.roi_size
+        
+        # Extract ROI
+        roi = cv_image[y1:y2, x1:x2]
+        hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        
+        # Create masks for ROI only
+        green_mask = cv2.inRange(hsv_roi, self.green_lower, self.green_upper)
+        red_mask1 = cv2.inRange(hsv_roi, self.red_lower1, self.red_upper1)
+        red_mask2 = cv2.inRange(hsv_roi, self.red_lower2, self.red_upper2)
         red_mask = cv2.bitwise_or(red_mask1, red_mask2)
 
-        # Check for presence (pixels count)
+        # Count pixels in ROI
         green_pixels = cv2.countNonZero(green_mask)
         red_pixels = cv2.countNonZero(red_mask)
 
-        status_text = "Wait for Color..."
-        
-        # Logic: Green to Start, Red to Stop
-        if green_pixels > 5000: # Adjust threshold based on distance/size
+        # Logic
+        if green_pixels > 2000: # Threshold is smaller because ROI is smaller
             if not self.is_moving:
-                self.get_logger().info('Green Detected - START MOVING')
+                self.get_logger().info('Green in ROI - START MOVING')
                 self.is_moving = True
                 self.current_twist.linear.x = 0.2
         
-        if red_pixels > 5000:
+        if red_pixels > 2000:
             if self.is_moving or self.current_twist.linear.x != 0.0:
-                self.get_logger().info('Red Detected - STOP')
+                self.get_logger().info('Red in ROI - STOP')
                 self.is_moving = False
                 self.current_twist.linear.x = 0.0
 
-        # Debug visualization
-        status_text = "MOVING (Green)" if self.is_moving else "STOPPED (Red/Idle)"
-        color = (0, 255, 0) if self.is_moving else (0, 0, 255)
-        
-        cv2.putText(cv_image, f"Status: {status_text}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-        cv2.putText(cv_image, f"G: {green_pixels} | R: {red_pixels}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1)
+        # Draw ROI Rectangle on main image
+        cv2.rectangle(cv_image, (x1, y1), (x2, y2), (255, 255, 0), 2)
+        cv2.putText(cv_image, "Detection Area", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
 
-        cv2.imshow("Color Control Feedback", cv_image)
+        # Status visualization
+        status_text = "MOVING" if self.is_moving else "STOPPED"
+        color = (0, 255, 0) if self.is_moving else (0, 0, 255)
+        cv2.putText(cv_image, f"Status: {status_text}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+
+        cv2.imshow("Color ROI Feedback", cv_image)
         cv2.waitKey(1)
 
 def main(args=None):
