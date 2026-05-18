@@ -164,30 +164,82 @@ Learn to control the robot using real-time color detection from the camera.
 *   Interface with the front-facing camera via [[peripherals]] (`usb_cam` or `depth_camera`).
 *   Understand image topics and basic image filtering.
 
-### 2.2 OpenCV Line Tracking (LKA)
-*   **The Code:** Study `src/app/app/line_following.py` to see how camera frames are processed.
-*   **Core Logic:**
-    1.  Convert camera feeds (`/ascamera/camera_publisher/rgb0/image`) into LAB color space.
-    2.  Apply thresholding to isolate the color of the lane markings (e.g., white/yellow lines).
-    3.  Calculate the geometric centroid across multiple Regions of Interest (ROIs) to determine the offset.
-*   **Steering Correction:** The node publishes corrective steering commands (`/controller/cmd_vel`) proportional to the centroid's offset to keep the vehicle centered.
+### 2.2 OpenCV Lane Detection Basics
+To follow a lane, the robot needs to perform these steps in real-time:
 
-### 2.3 Actionable ROS 2 Steps
-1.  **Ensure Bringup is running:** (Camera must be active).
-2.  **Launch the Lane Keeping App:**
-    ```bash
-    ros2 launch app line_following_node.launch.py
+1.  **Color Space Conversion:** Convert BGR to **HSV** or **LAB** to make it easier to isolate specific colors (like yellow/white lines) regardless of lighting.
+2.  **Region of Interest (ROI):** Crop the image to look only at the floor. We don't need to process the ceiling or walls.
+3.  **Thresholding:** Create a binary mask where the lane is white and everything else is black.
+4.  **Centroid Calculation:** Find the horizontal center of the white area.
+
+### 2.3 DIY: Create "lane_detect_node"
+Write a node that finds the center of a line and visualizes it.
+
+1.  **Write the Node:**
+    Create `src/mycar/mycar/lane_detect_node.py`:
+    ```python
+    import rclpy
+    from rclpy.node import Node
+    from geometry_msgs.msg import Twist
+    from sensor_msgs.msg import Image
+    from cv_bridge import CvBridge
+    import cv2
+    import numpy as np
+
+    class LaneDetectNode(Node):
+        def __init__(self):
+            super().__init__('lane_detect_node')
+            self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+            self.subscription = self.create_subscription(Image, '/ascamera/camera_publisher/rgb0/image', self.image_callback, 10)
+            self.bridge = CvBridge()
+            
+            # Threshold for Yellow/White Line (Adjust as needed)
+            self.lower_line = np.array([20, 100, 100])
+            self.upper_line = np.array([50, 255, 255])
+
+        def image_callback(self, msg):
+            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            h, w, _ = cv_image.shape
+            
+            # 1. Focus on the bottom half (ROI)
+            roi = cv_image[int(h/2):h, 0:w]
+            hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+            
+            # 2. Find the line
+            mask = cv2.inRange(hsv, self.lower_line, self.upper_line)
+            
+            # 3. Find Moments (to calculate center)
+            M = cv2.moments(mask)
+            if M['m00'] > 0:
+                cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
+                
+                # Draw the center point
+                cv2.circle(roi, (cx, cy), 5, (0, 0, 255), -1)
+                
+                # 4. Simple Steering Logic
+                error = cx - w/2
+                twist = Twist()
+                twist.linear.x = 0.1
+                twist.angular.z = -float(error) / 100 # Proportional control
+                self.publisher_.publish(twist)
+                
+            cv2.imshow("Lane Detection", roi)
+            cv2.waitKey(1)
+
+    def main(args=None):
+        rclpy.init(args=args)
+        node = LaneDetectNode()
+        rclpy.spin(node)
     ```
-3.  **Calibrate Colors (If needed):** Use the ColorPicker tool in `src/app/app/common.py` to adjust LAB thresholds for your specific track lighting.
 
-```mermaid
-graph TD
-    Cam["Dashcam Stream"] --> OpenCV["OpenCV Image Processing"]
-    OpenCV --> Thresh["LAB Color Thresholding"]
-    Thresh --> Centroid["Calculate Line Centroids"]
-    Centroid --> LKA["Lane Keeping Logic (PID)"]
-    LKA --> Move["Corrective Steering Command"]
-```
+2.  **Register and Run:**
+    Add `'lane_detect_node = mycar.lane_detect_node:main'` to `setup.py`, then build:
+    ```bash
+    cd ~/ros2_ws && colcon build --packages-select mycar
+    source ~/.zshrc
+    ros2 run mycar lane_detect_node
+    ```
 
 ---
 

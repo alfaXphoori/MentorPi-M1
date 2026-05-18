@@ -27,6 +27,7 @@ setup(
             'square_node = mycar.square_move:main',
             'hand_control_node = mycar.hand_control:main',
             'color_control_node = mycar.color_control:main',
+            'lane_detect_node = mycar.lane_detect_node:main',
         ],
     },
 )
