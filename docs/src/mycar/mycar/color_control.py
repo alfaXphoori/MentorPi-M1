@@ -27,71 +27,63 @@ class ColorControlNode(Node):
         # Timer to publish command continuously at 10Hz
         self.timer = self.create_timer(0.1, self.timer_callback)
 
-        # Broadened Color Ranges (HSV) for better detection
-        self.green_lower = np.array([35, 50, 50])
-        self.green_upper = np.array([90, 255, 255])
+        # Target Mean Colors (HSV)
+        # Instead of ranges, we check if the average color is close to these
+        self.green_target = np.array([60, 180, 150]) # Typical green
+        self.red_target = np.array([0, 180, 150])   # Typical red
         
-        self.red_lower1 = np.array([0, 70, 70])
-        self.red_upper1 = np.array([10, 255, 255])
-        self.red_lower2 = np.array([160, 70, 70])
-        self.red_upper2 = np.array([180, 255, 255])
+        # Tolerance for mean color matching
+        self.hue_tolerance = 20
+        self.sat_min = 70
+        self.val_min = 70
 
-        # ROI Parameters (Proportional to resized image)
-        self.target_width = 320
-        self.target_height = 240
-        self.roi_size = 80 # Detection box size
+        # Small ROI for ultra-speed (e.g., 40x40 pixels)
+        self.roi_size = 40
 
-        self.get_logger().info('Optimized Color Control Started. Low-res mode enabled.')
+        self.get_logger().info('Ultra-Fast Mean Color Control Started.')
 
     def timer_callback(self):
         self.publisher_.publish(self.current_twist)
 
     def image_callback(self, msg):
-        # 1. Convert and Resize immediately for SPEED
+        # 1. Convert to CV2 (No resize yet)
         full_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-        cv_image = cv2.resize(full_image, (self.target_width, self.target_height))
+        h, w, _ = full_image.shape
         
-        height, width, _ = cv_image.shape
+        # 2. DIRECT CROP (The fastest way - process only 1600 pixels)
+        cx, cy = w // 2, h // 2
+        r = self.roi_size // 2
+        roi = full_image[cy-r:cy+r, cx-r:cx+r]
         
-        # 2. Define ROI (Center)
-        x1 = int(width/2 - self.roi_size/2)
-        y1 = int(height/2 - self.roi_size/2)
-        x2 = x1 + self.roi_size
-        y2 = y1 + self.roi_size
-        
-        # 3. Process only the ROI
-        roi = cv_image[y1:y2, x1:x2]
+        # 3. CALCULATE MEAN (Ultra-fast)
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        mean_hsv = cv2.mean(hsv_roi)[:3] # [H, S, V]
         
-        green_mask = cv2.inRange(hsv_roi, self.green_lower, self.green_upper)
-        red_mask1 = cv2.inRange(hsv_roi, self.red_lower1, self.red_upper1)
-        red_mask2 = cv2.inRange(hsv_roi, self.red_lower2, self.red_upper2)
-        red_mask = cv2.bitwise_or(red_mask1, red_mask2)
-
-        green_pixels = cv2.countNonZero(green_mask)
-        red_pixels = cv2.countNonZero(red_mask)
-
-        # 4. Logic with Lower Threshold (More sensitive)
-        if green_pixels > 300: 
+        h_val, s_val, v_val = mean_hsv
+        
+        # 4. FAST LOGIC
+        # Check Green (Hue around 60)
+        if 40 < h_val < 90 and s_val > self.sat_min and v_val > self.val_min:
             if not self.is_moving:
-                self.get_logger().info(f'Green: {green_pixels} - STARTING')
+                self.get_logger().info(f'Detected GREEN (Mean H:{int(h_val)}) - START')
                 self.is_moving = True
                 self.current_twist.linear.x = 0.2
         
-        if red_pixels > 300:
+        # Check Red (Hue near 0 or 180)
+        elif (h_val < 15 or h_val > 165) and s_val > self.sat_min and v_val > self.val_min:
             if self.is_moving or self.current_twist.linear.x != 0.0:
-                self.get_logger().info(f'Red: {red_pixels} - STOPPING')
+                self.get_logger().info(f'Detected RED (Mean H:{int(h_val)}) - STOP')
                 self.is_moving = False
                 self.current_twist.linear.x = 0.0
 
-        # 5. Fast Debug View
-        cv2.rectangle(cv_image, (x1, y1), (x2, y2), (255, 255, 0), 2)
-        status = "MOVING" if self.is_moving else "STOPPED"
+        # 5. Visual Feedback (Optional - disable for maximum speed)
+        # Draw on a small preview only to save CPU
+        preview = cv2.resize(roi, (160, 160)) # Zoomed in ROI
         color = (0, 255, 0) if self.is_moving else (0, 0, 255)
-        cv2.putText(cv_image, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-        cv2.putText(cv_image, f"G:{green_pixels} R:{red_pixels}", (10, 230), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
-
-        cv2.imshow("Fast Color ROI", cv_image)
+        cv2.putText(preview, f"H:{int(h_val)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+        cv2.rectangle(preview, (0,0), (159,159), color, 4)
+        
+        cv2.imshow("Ultra-Fast ROI", preview)
         cv2.waitKey(1)
 
 def main(args=None):
