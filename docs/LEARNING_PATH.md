@@ -248,32 +248,34 @@ Write a node that finds the center of a line and visualizes it.
 
 ### 3.1 YOLOv5 Traffic Sign Detection
 *   **The Code:** Run the `yolo_detect.py` node from the [[yolov5_ros2]] package.
-*   **Model:** Ensure you load a `.pt` model trained to recognize traffic signs (e.g., Left Turn, Right Turn, Stop).
-*   **Data Output:** The node publishes to `/object_detect` containing the class name, bounding box, and confidence score.
+*   **Model:** We use a pre-trained model (`traffic_signs_640s_7_0.pt`) located in `src/yolov5_ros2/config/`. It is trained to recognize specific signs like "P" (Parking), "R" (Turn Right), and "S" (Go Straight).
+*   **Data Output:** The node publishes to `/yolov5_ros2/object_detect` containing the class name, bounding box, and confidence score.
 
-### 3.2 Decision Logic (State Machine)
-*   **Integration:** You will need to write a custom control node (e.g., in the `example` package) that subscribes to both the LKA output and the YOLOv5 output.
+### 3.2 Decision Logic (yolo_logic_node)
+*   **Integration:** We have created a custom node `src/mycar/mycar/yolo_logic_node.py` that acts as the "Brain".
 *   **Execution:** 
-    *   *Default State:* Relay the lane-keeping `/cmd_vel` to the motor drivers.
-    *   *Event Trigger:* If YOLO detects a "Turn Left" sign with >80% confidence, temporarily override the LKA command with a hard left turn command (`angular.z`) for a set duration before resuming lane keeping.
+    *   *Default State:* Lane Keeping (Idle until a sign is detected).
+    *   *Event Trigger:* When YOLO detects a sign (e.g., "R" with >70% confidence), the logic node takes over, executes a predefined maneuver (like turning right for 2 seconds), and then returns to its default state.
 
 ### 3.3 Actionable ROS 2 Steps
-1.  **Launch YOLOv5 Detection:**
+1.  **Launch YOLOv5 Detection (with specific model):**
+    You need to tell the YOLO node to use our specific traffic sign model.
     ```bash
-    ros2 launch yolov5_ros2 yolov5_ros2.launch.py
+    # Typically done via launch file arguments or parameter files. Example:
+    ros2 launch yolov5_ros2 yolov5_ros2.launch.py model_path:=src/yolov5_ros2/config/traffic_signs_640s_7_0.pt
     ```
-2.  **View Real-time Detections:**
+2.  **Run the Logic Node:**
     ```bash
-    ros2 topic echo /yolov5_ros2/object_detect
+    cd ~/ros2_ws && colcon build --packages-select mycar
+    source ~/.zshrc
+    ros2 run mycar yolo_logic_node
     ```
-3.  **Develop the Override Node:** Create a new Python script in `src/example/example/` that listens to `interfaces/msg/ObjectsInfo` and `geometry_msgs/Twist`, and controls the vehicle accordingly.
 
 ```mermaid
 graph TD
-    Cam["Camera"] --> YOLO["YOLOv5 Inference"]
-    YOLO -- "Detected: Turn Right" --> Logic["Decision Node"]
-    LKA["Lane Keep Assist"] -- "Default Steering" --> Logic
-    Logic -- "Override LKA" --> Move["Turn Wheels Right"]
+    Cam["Camera"] --> YOLO["YOLOv5 Inference (traffic_signs.pt)"]
+    YOLO -- "Detected: 'R' (Right)" --> Logic["yolo_logic_node"]
+    Logic -- "Execute Maneuver" --> Move["Turn Wheels Right for 2s"]
 ```
 
 ---
