@@ -21,14 +21,21 @@ Welcome to the MentorPi M1 robot FSD engineering track. This specialized learnin
     ```bash
     ros2 launch bringup bringup.launch.py
     ```
-2.  **Test Manual Control (Teleop):**
+2.  **Test Manual Control (Keyboard):**
     ```bash
-    ros2 launch peripherals joystick_control.launch.py
+    ros2 run teleop_twist_keyboard teleop_twist_keyboard
     ```
+    *Use **W/X** for forward/backward and **A/D** for steering.*
     *Alternatively, run the example script to publish test velocities directly:*
     ```bash
     ros2 run example body_control
     ```
+3.  **Control via Command Line (Topic):**
+    Publish velocity commands directly to the `/cmd_vel` topic for manual testing.
+    ```bash
+    ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.5}}"
+    ```
+    *Adjust `linear.x` for speed (m/s) and `angular.z` for steering angle (rad).*
 
 ```mermaid
 graph LR
@@ -36,6 +43,57 @@ graph LR
     Controller -- "Steering Angle" --> Servo["Front Servo"]
     Controller -- "Throttle" --> Motors["Rear Drive Motors"]
 ```
+
+### 1.4 DIY: Create Your First ROS 2 Package ("mycar")
+Instead of just running a script, learn to create a formal ROS 2 package. This is the professional way to manage robot code.
+
+1.  **Create the Package:**
+    Open a terminal and run these commands to create a package named `mycar`:
+    ```bash
+    cd ~/ros2_ws/src
+    ros2 pkg create --build-type ament_python mycar --dependencies rclpy geometry_msgs
+    ```
+
+2.  **Write the Control Node:**
+    Create a new file at `src/mycar/mycar/drive_node.py` and paste the following:
+    ```python
+    import rclpy
+    from rclpy.node import Node
+    from geometry_msgs.msg import Twist
+
+    class DriveNode(Node):
+        def __init__(self):
+            super().__init__('drive_node')
+            self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+            self.timer = self.create_timer(0.5, self.timer_callback)
+
+        def timer_callback(self):
+            msg = Twist()
+            msg.linear.x = 0.2   # Speed: 0.2 m/s
+            msg.angular.z = 0.1  # Slight steering
+            self.publisher_.publish(msg)
+            self.get_logger().info('My car is driving...')
+
+    def main(args=None):
+        rclpy.init(args=args)
+        node = DriveNode()
+        rclpy.spin(node)
+        rclpy.shutdown()
+    ```
+
+3.  **Register the Node:**
+    Edit `src/mycar/setup.py` and add this line inside the `console_scripts` bracket:
+    ```python
+    'drive_node = mycar.drive_node:main',
+    ```
+
+4.  **Build and Run:**
+    ```bash
+    cd ~/ros2_ws
+    colcon build --packages-select mycar
+    source install/setup.bash
+    ros2 run mycar drive_node
+    ```
 
 ---
 
