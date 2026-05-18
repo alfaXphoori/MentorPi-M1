@@ -620,30 +620,4 @@ graph TD
         };
     </script>
 </body>
-</html>       const contentArea = document.getElementById('content-area');
-            contentArea.innerHTML = marked.parse(markdown);
-
-            const codeBlocks = contentArea.querySelectorAll('pre code.language-mermaid');
-            codeBlocks.forEach((block) => {
-                const mermaidDiv = document.createElement('div');
-                mermaidDiv.className = 'mermaid';
-                mermaidDiv.textContent = block.textContent;
-                block.parentElement.replaceWith(mermaidDiv);
-            });
-
-            setTimeout(() => {
-                try {
-                    mermaid.init(undefined, ".mermaid");
-                } catch (e) {
-                    console.error("Mermaid parsing error:", e);
-                }
-            }, 50);
-        }
-
-        window.onload = () => {
-            preloadContent();
-            showContent('root', document.getElementById('nav-root'));
-        };
-    </script>
-</body>
 </html>
