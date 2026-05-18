@@ -44,18 +44,18 @@ graph LR
     Controller -- "Throttle" --> Motors["Rear Drive Motors"]
 ```
 
-### 1.4 DIY: Create Your First ROS 2 Package ("mycar")
-Instead of just running a script, learn to create a formal ROS 2 package. This is the professional way to manage robot code.
+### 1.4 DIY: Create "drive_node" (Basic Movement)
+Learn to create a formal ROS 2 package and your first control node.
 
 1.  **Create the Package:**
-    Open a terminal and run these commands to create a package named `mycar`:
+    Open a terminal and run these commands:
     ```bash
     cd ~/ros2_ws/src
     ros2 pkg create --build-type ament_python mycar --dependencies rclpy geometry_msgs
     ```
 
 2.  **Write the Control Node:**
-    Create a new file at `src/mycar/mycar/drive_node.py` and paste the following:
+    Create `src/mycar/mycar/drive_node.py`:
     ```python
     import rclpy
     from rclpy.node import Node
@@ -69,8 +69,8 @@ Instead of just running a script, learn to create a formal ROS 2 package. This i
 
         def timer_callback(self):
             msg = Twist()
-            msg.linear.x = 0.2   # Speed: 0.2 m/s
-            msg.angular.z = 0.1  # Slight steering
+            msg.linear.x = 0.2
+            msg.angular.z = 0.1
             self.publisher_.publish(msg)
             self.get_logger().info('My car is driving...')
 
@@ -81,8 +81,19 @@ Instead of just running a script, learn to create a formal ROS 2 package. This i
         rclpy.shutdown()
     ```
 
-2.1 **Write the Square Movement Node (Advanced):**
-    Create another file at `src/mycar/mycar/square_move.py` to make the car drive in a square pattern:
+3.  **Register and Run:**
+    Add `'drive_node = mycar.drive_node:main'` to `setup.py`, then build:
+    ```bash
+    cd ~/ros2_ws && colcon build --packages-select mycar
+    source ~/.zshrc
+    ros2 run mycar drive_node
+    ```
+
+### 1.5 DIY: Create "square_move" (Sequence Logic)
+Build on your package by adding a node that follows a timed sequence to drive in a square.
+
+1.  **Write the Node:**
+    Create `src/mycar/mycar/square_move.py`:
     ```python
     import rclpy
     from rclpy.node import Node
@@ -120,21 +131,11 @@ Instead of just running a script, learn to create a formal ROS 2 package. This i
         node = SquareMove()
     ```
 
-3.  **Register the Nodes:**
-    Edit `src/mycar/setup.py` and add these lines inside the `console_scripts` bracket:
-    ```python
-    'drive_node = mycar.drive_node:main',
-    'square_node = mycar.square_move:main',
-    ```
-
-4.  **Build and Run:**
+2.  **Register and Run:**
+    Add `'square_node = mycar.square_move:main'` to `setup.py`, then build:
     ```bash
-    cd ~/ros2_ws
-    colcon build --packages-select mycar
+    cd ~/ros2_ws && colcon build --packages-select mycar
     source ~/.zshrc
-    # To run basic drive:
-    ros2 run mycar drive_node
-    # To run square mission:
     ros2 run mycar square_node
     ```
 
