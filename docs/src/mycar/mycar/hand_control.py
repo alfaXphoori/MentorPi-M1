@@ -14,7 +14,7 @@ class HandControlNode(Node):
         # Subscribe to camera topic
         self.subscription = self.create_subscription(
             Image,
-            '/ascamera/camera_publisher/rgb0/image', # Change if your camera topic is different
+            '/ascamera/camera_publisher/rgb0/image',
             self.image_callback,
             10)
         
@@ -30,13 +30,22 @@ class HandControlNode(Node):
         )
         self.mp_draw = mp.solutions.drawing_utils
 
-        self.get_logger().info('Hand Control Node Started. 2 fingers: Forward, 5 fingers: Stop.')
+        # Movement State
+        self.is_moving = False
+        self.current_twist = Twist()
+
+        # Timer to publish command continuously at 10Hz
+        self.timer = self.create_timer(0.1, self.timer_callback)
+
+        self.get_logger().info('Hand Control Node Started. 2 fingers: Start, 5 fingers: Stop.')
+
+    def timer_callback(self):
+        # Always publish the current twist to maintain movement
+        self.publisher_.publish(self.current_twist)
 
     def image_callback(self, msg):
         cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         results = self.hands.process(cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB))
-        
-        twist = Twist()
         
         if results.multi_hand_landmarks:
             for hand_landmarks in results.multi_hand_landmarks:
@@ -46,25 +55,24 @@ class HandControlNode(Node):
                 # Count fingers
                 fingers = self.count_fingers(hand_landmarks)
                 
-                if fingers == 2:
-                    self.get_logger().info('Gesture: 2 Fingers - Moving Forward')
-                    twist.linear.x = 0.2
-                elif fingers == 5:
+                if fingers == 2 and not self.is_moving:
+                    self.get_logger().info('Gesture: 2 Fingers - START MOVING')
+                    self.is_moving = True
+                    self.current_twist.linear.x = 0.2 # Adjust speed as needed
+                elif fingers == 5 and self.is_moving:
                     self.get_logger().info('Gesture: 5 Fingers - STOP')
-                    twist.linear.x = 0.0
-                
-                self.publisher_.publish(twist)
+                    self.is_moving = False
+                    self.current_twist.linear.x = 0.0
 
-        # Optional: Show debug window (uncomment if running on robot with screen)
-        # cv2.imshow("Hand Control Debug", cv_image)
-        # cv2.waitKey(1)
+        # Show camera feedback with landmarks
+        cv2.imshow("Hand Control Feedback", cv_image)
+        cv2.waitKey(1)
 
     def count_fingers(self, landmarks):
         fingers = []
-        # Tips of fingers (Thumb, Index, Middle, Ring, Pinky)
         tip_ids = [4, 8, 12, 16, 20]
         
-        # Thumb (Check x coordinate for left/right hand)
+        # Thumb
         if landmarks.landmark[tip_ids[0]].x < landmarks.landmark[tip_ids[0] - 1].x:
             fingers.append(1)
         else:
@@ -82,8 +90,14 @@ class HandControlNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = HandControlNode()
-    rclpy.spin(node)
-    rclpy.shutdown()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        cv2.destroyAllWindows()
+        node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
