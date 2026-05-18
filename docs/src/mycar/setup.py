@@ -25,6 +25,7 @@ setup(
         'console_scripts': [
             'drive_node = mycar.drive_node:main',
             'square_node = mycar.square_move:main',
+            'hand_control_node = mycar.hand_control:main',
         ],
     },
 )
