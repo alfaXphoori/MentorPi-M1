@@ -40,16 +40,16 @@ class LaneDetectNode(Node):
         self.proc_h = 240
         self.last_lane_width = 160.0 # Expected width in 320px image
         
-        self.declare_parameter('use_white', False)
+        self.declare_parameter('use_white', True)
         self.declare_parameter('base_speed', 0.15)
         self.declare_parameter('kp', 0.015) # Adjusted for 320px width
         self.declare_parameter('show_debug', True)
         
-        # Color Thresholds
+        # Color Thresholds (Optimized for Indoor White Lines)
         self.lower_yellow = np.array([20, 100, 100], dtype=np.uint8)
         self.upper_yellow = np.array([40, 255, 255], dtype=np.uint8)
-        self.lower_white = np.array([0, 0, 180], dtype=np.uint8)
-        self.upper_white = np.array([180, 50, 255], dtype=np.uint8)
+        self.lower_white = np.array([0, 0, 200], dtype=np.uint8)
+        self.upper_white = np.array([180, 60, 255], dtype=np.uint8)
 
         self.get_logger().info('FAST Lane Detection Started (320x240, Direct Moments).')
 
@@ -71,20 +71,24 @@ class LaneDetectNode(Node):
             cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
             img = cv2.resize(cv_image, (self.proc_w, self.proc_h))
             
-            # 2. Single ROI (Bottom 40%) - Avoids multiple slices
-            roi_top = int(self.proc_h * 0.6)
+            # 2. Single ROI (Bottom 50%) - More context for better lookahead
+            roi_top = int(self.proc_h * 0.5)
             roi = img[roi_top:self.proc_h, :]
             
+            # Pre-processing: Blur to reduce reflection noise
+            blur = cv2.GaussianBlur(roi, (5, 5), 0)
+            
             # 3. HSV Masking
-            hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+            hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
             if self.get_parameter('use_white').value:
                 mask = cv2.inRange(hsv, self.lower_white, self.upper_white)
             else:
                 mask = cv2.inRange(hsv, self.lower_yellow, self.upper_yellow)
                 
-            # Fast noise removal
-            kernel = np.ones((3,3), np.uint8)
+            # Noise removal and bridging gaps
+            kernel = np.ones((5,5), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            mask = cv2.dilate(mask, kernel, iterations=1) # Bridge dashed lines
             
             # 4. Split L/R & Direct Moments (Skips findContours entirely -> Huge Speedup)
             mid_x = self.proc_w // 2
