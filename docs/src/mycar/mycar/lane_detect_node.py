@@ -5,7 +5,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from .lane_detector import LaneDetector
+from mycar.lane_detector import LaneDetector
 
 class LaneDetectNode(Node):
     def __init__(self):
