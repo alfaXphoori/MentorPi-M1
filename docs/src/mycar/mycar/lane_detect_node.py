@@ -17,6 +17,7 @@ class LaneDetectNode(Node):
             self.image_callback,
             10)
         self.bridge = CvBridge()
+        self.debug_pub = self.create_publisher(Image, '/lane_debug', 10)
         
         # Declare and Get Parameters
         self.declare_parameter('lower_yellow', [20, 100, 100])
@@ -89,9 +90,11 @@ class LaneDetectNode(Node):
 
             # Show results only if enabled
             if self.show_debug:
-                cv2.imshow("Lane Mask", mask)
-                cv2.imshow("Lane ROI", roi)
-                cv2.waitKey(1)
+                try:
+                    debug_msg = self.bridge.cv2_to_imgmsg(roi, "bgr8")
+                    self.debug_pub.publish(debug_msg)
+                except Exception as e:
+                    self.get_logger().error(f'Debug publish error: {e}')
         except Exception as e:
             self.get_logger().error(f'Processing Error: {e}')
 
