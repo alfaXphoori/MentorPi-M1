@@ -34,6 +34,8 @@ class YoloLogicNode(Node):
 
         # Video Display Setup
         self.bridge = CvBridge()
+        self.debug_pub = self.create_publisher(Image, '/yolo_debug', 10)
+        
         if self.show_video:
             # Subscribe to the annotated image from YOLO
             self.image_sub = self.create_subscription(
