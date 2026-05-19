@@ -6,12 +6,6 @@ from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
-    # Path to configuration file
-    config_path = os.path.join(
-        get_package_share_directory('mycar'),
-        'config',
-        'params.yaml'
-    )
     
     # YOLOv5 Launch File Path
     yolo_launch_path = os.path.join(
@@ -32,7 +26,6 @@ def generate_launch_description():
             package='mycar',
             executable='yolo_logic_node',
             name='yolo_logic',
-            output='screen',
-            parameters=[config_path]
+            output='screen'
         )
     ])
