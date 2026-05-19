@@ -55,7 +55,7 @@ class ImuSquareMove(Node):
             self.move_forward(self.forward_speed, self.drive_duration, target_yaw)
             
             # 2. Turn 90 Degrees Right (Negative)
-            self.get_logger().info(f'Side {i+1}: Turning 90° Right...')
+            self.get_logger().info(f'Side {i+1}: Turning 90 degrees Right...')
             target_yaw = self.normalize_angle(target_yaw - (math.pi / 2))
             self.turn_to_yaw(target_yaw)
             
