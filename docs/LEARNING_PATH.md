@@ -8,9 +8,16 @@ Welcome to the MentorPi M1 robot FSD engineering track. This specialized learnin
 **Objective:** Establishing communication with the hardware and mastering timed and sensor-based movement sequences.
 
 ### 1.1 Manual Control (Teleoperation)
-Before writing code, verify the hardware communication by driving the robot manually.
-*   **Action:** Launch `bringup.launch.py` in one terminal, then run `ros2 run teleop_twist_keyboard teleop_twist_keyboard` in another.
-*   **Key Concept:** Using the `W/A/S/D` keys to publish `Twist` messages directly to the `/cmd_vel` topic.
+Before writing code, verify the hardware communication by driving the robot manually using your keyboard.
+*   **Action:** 
+    1. Launch the base system in Terminal 1: `ros2 launch bringup bringup.launch.py`
+    2. Run the teleop node in Terminal 2: `ros2 run teleop_twist_keyboard teleop_twist_keyboard`
+*   **Keyboard Commands:**
+    *   **`i` / `,`**: Move Forward / Backward (increases/decreases `linear.x`)
+    *   **`j` / `l`**: Turn Left / Turn Right (increases/decreases `angular.z`)
+    *   **`k`**: Force Stop (sets all velocities to 0.0)
+    *   **`q` / `z`**: Increase / Decrease max speed by 10%
+*   **Key Concept:** This tool translates your keystrokes into standard `geometry_msgs/msg/Twist` messages and publishes them to the `/cmd_vel` topic, which the hardware driver then converts into motor speeds.
 
 ### 1.2 drive_node.py (The "Hello World" of Movement)
 Learn the basics of publishing to the `/cmd_vel` topic from a Python script to make the robot move autonomously.
