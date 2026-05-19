@@ -17,11 +17,10 @@ ros2 launch bringup bringup.launch.py
 *รอจนกว่าเซ็นเซอร์ทั้งหมดและกล้องทำงานเรียบร้อย*
 
 ### Step 2: เปิดระบบตรวจจับป้ายจราจรด้วย AI (YOLOv5 Perception)
-เปิด Node สำหรับประมวลผลภาพจากกล้องเพื่อหาป้ายจราจร (เช่น ป้ายเลี้ยวขวา, ป้ายหยุด)
+เปิด Node สำหรับประมวลผลภาพจากกล้องเพื่อหาป้ายจราจร โดยใช้โมเดล `traffic_signs_640s_7_0` ที่เทรนมาเฉพาะ
 ```bash
 # รันคำสั่งนี้ใน Terminal ที่ 2
-ros2 launch yolov5_ros2 yolo_detect.launch.py
-# (หรือคำสั่งรัน YOLO ที่ตั้งค่าไว้ในแพ็กเกจ)
+ros2 launch yolov5_ros2 yolov5_ros2.launch.py model:="traffic_signs_640s_7_0"
 ```
 *ขั้นตอนนี้จำเป็นมาก เพื่อให้ FSD นำข้อมูลไปใช้ใน `yolo_logic_node`*
 
