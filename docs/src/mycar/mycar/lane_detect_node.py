@@ -100,10 +100,6 @@ class LaneDetectNode(Node):
             
             debug_msg = self.bridge.cv2_to_imgmsg(debug_img, "bgr8")
             self.debug_pub.publish(debug_msg)
-            
-            # Show the debug window
-            cv2.imshow("Lane Keep FSD Debug", debug_img)
-            cv2.waitKey(1)
 
         except Exception as e:
             self.get_logger().error(f'FSD Logic Error: {e}')
@@ -116,7 +112,6 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        cv2.destroyAllWindows()
         node.destroy_node()
         rclpy.shutdown()
 
