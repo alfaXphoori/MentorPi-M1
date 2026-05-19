@@ -43,6 +43,8 @@ class LaneDetectNode(Node):
         self.declare_parameter('kp', 0.005)
         self.declare_parameter('show_debug', True)
         self.declare_parameter('target_x_ratio', 0.5) # Default 0.5 = Center of lane
+        self.declare_parameter('roi_top_ratio', 0.45) # Look further ahead (default was 0.65)
+        self.declare_parameter('roi_bottom_ratio', 0.95)
 
         self.lower_yellow = np.array(self.get_parameter('lower_yellow').value, dtype=np.uint8)
         self.upper_yellow = np.array(self.get_parameter('upper_yellow').value, dtype=np.uint8)
@@ -53,6 +55,8 @@ class LaneDetectNode(Node):
         self.kp = self.get_parameter('kp').value
         self.show_debug = self.get_parameter('show_debug').value
         self.target_x_ratio = self.get_parameter('target_x_ratio').value
+        self.roi_top_ratio = self.get_parameter('roi_top_ratio').value
+        self.roi_bottom_ratio = self.get_parameter('roi_bottom_ratio').value
 
         self.get_logger().info(f'Dual-Lane Detection Started. Mode: {"White" if self.use_white else "Yellow"}')
 
@@ -79,8 +83,8 @@ class LaneDetectNode(Node):
             h, w, _ = cv_image.shape
             
             # 1. ROI 
-            roi_top = int(h * 0.65)
-            roi_bottom = int(h * 0.95)
+            roi_top = int(h * self.roi_top_ratio)
+            roi_bottom = int(h * self.roi_bottom_ratio)
             roi = cv_image[roi_top:roi_bottom, 0:w]
             
             hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
