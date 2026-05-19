@@ -98,6 +98,7 @@ class LaneDetectNode(Node):
                     
                     # Add status text
                     cv2.putText(roi, f"Error: {error}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                    cv2.putText(roi, f"Pos: ({cx}, {cy})", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
                 else:
                     cv2.putText(roi, "LINE LOST", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                     self.publisher_.publish(Twist())
