@@ -25,7 +25,7 @@ class LidarDetectNode(Node):
         self.declare_parameter('stop_distance', 0.3)
         self.stop_dist = self.get_parameter('stop_distance').value
         
-        self.get_logger().info('Lidar Detection Node Started. Monitoring Front sector only.')
+        self.get_logger().info('Lidar Detection Node Started. Monitoring Front sector (-30 to +30 deg).')
 
     def scan_callback(self, msg):
         num_points = len(msg.ranges)
@@ -40,8 +40,8 @@ class LidarDetectNode(Node):
             dist = msg.ranges[i]
             
             if msg.range_min < dist < msg.range_max:
-                # Center (Front) Sector: -15 to +15 degrees
-                if -0.26 < angle < 0.26:
+                # Center (Front) Sector: -30 to +30 degrees (~0.52 radians)
+                if -0.52 < angle < 0.52:
                     front_sector.append(dist)
         
         # Get minimum front distance (default to max range if empty)
