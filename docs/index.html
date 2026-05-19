@@ -320,7 +320,7 @@
     <nav id="top-navbar">
         <div class="d-flex align-items-center gap-3">
             <button id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-            <h5 style="color: var(--h-color); font-weight: 700; margin: 0; cursor: pointer;" onclick="showContent('root', document.getElementById('nav-root'))">MentorPi M1 robot</h5>
+            <h5 style="color: var(--h-color); font-weight: 700; margin: 0; cursor: pointer;" onclick="showContent('graph', document.getElementById('nav-graph'))">MentorPi M1 robot</h5>
         </div>
         
         <div class="search-container">
@@ -337,13 +337,13 @@
         <div id="package-list-container">
             <ul class="nav flex-column mb-auto" id="package-list">
                 <li class="nav-item mt-3">
-                    <a class="nav-link active" href="#" id="nav-root" onclick="showContent('root', this)">🏠 System Overview</a>
+                    <a class="nav-link active" href="#" id="nav-graph" onclick="showContent('graph', this)">🕸️ Learning Graph</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#" id="nav-learning_path" onclick="showContent('learning_path', this)">🎓 Learning Path</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" id="nav-graph" onclick="showContent('graph', this)">🕸️ Graph View</a>
+                    <a class="nav-link" href="#" id="nav-root" onclick="showContent('root', this)">🏠 System Overview</a>
                 </li>
                 <li class="nav-item mt-3 mb-1 px-3" style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-color); opacity: 0.7;">Packages</li>
                 <li class="nav-item"><a class="nav-link" href="#" id="nav-bringup" onclick="showContent('bringup', this)">Bringup</a></li>
@@ -371,61 +371,60 @@
     </main>
 
     <script type="text/markdown" id="graph">
-# 🕸️ Workspace Dependency Graph
+# 🕸️ MentorPi M1 Learning Graph
 
-This graph visualizes the high-level architecture and data flow between the MentorPi M1 robot ROS 2 packages.
+This page is the visual roadmap for the recommended learning order. Follow the graph from manual control to the full self-driving stack, then open [[LEARNING_PATH]] for the detailed commands and file locations.
 
 ```mermaid
 graph TD
-    %% Main Nodes
-    Bringup("bringup (Master Orchestrator)")
-    Driver("driver / controller (Low-Level)")
-    Peripherals("peripherals (Sensors/Teleop)")
-    App("app (High-Level Apps)")
-    YOLO("yolov5_ros2 (Object Detect)")
-    SLAM("slam (Mapping)")
-    Nav("navigation (Nav2 Stack)")
-    Multi("multi (Coordination)")
-    LLM("large_models (AI/LLM/VLM)")
-    
-    %% Common Interfaces
-    Interfaces("interfaces / msgs")
+    Start["Start Here"]
 
-    %% Bringup Flow
-    Bringup -->|"Launch Drivers"| Driver
-    Bringup -->|"Start Sensors"| Peripherals
-    Bringup -->|"Init Services"| App
-    
-    %% Data Flow - Perception
-    Peripherals -->|"/scan_raw"| SLAM
-    Peripherals -->|"/image_raw"| YOLO
-    YOLO -->|"/object_detect"| App
-    LLM -->|"VLM Analysis"| App
+    P1["Phase 1<br/>Basic Motion Control"]
+    P11["1.1 Manual Control"]
+    P12["1.2 drive_node.py"]
+    P13["1.3 square_move.py"]
+    P14["1.4 imu_square_move.py"]
 
-    %% Data Flow - Movement
-    App -->|"/cmd_vel"| Driver
-    Nav -->|"/cmd_vel"| Driver
-    Multi -->|"/cmd_vel"| Driver
-    LLM -->|"Autonomous Goals"| Nav
-    
-    %% Spatial Intelligence
-    SLAM -->|"/map"| Nav
-    Nav -->|"Leader Pose"| Multi
-    
-    %% Dependencies
-    Driver -.-> Interfaces
-    App -.-> Interfaces
-    LLM -.-> Interfaces
-    
-    %% Styling
-    style Bringup fill:#6c429c,stroke:#333,stroke-width:2px,color:#fff
-    style Driver fill:#2f74c0,stroke:#333,stroke-width:2px,color:#fff
-    style SLAM fill:#288b45,stroke:#333,stroke-width:2px,color:#fff
-    style Nav fill:#288b45,stroke:#333,stroke-width:2px,color:#fff
-    style App fill:#c94d2c,stroke:#333,stroke-width:2px,color:#fff
-    style LLM fill:#ff9800,stroke:#333,stroke-width:2px,color:#fff
-    style Interfaces fill:#607d8b,stroke:#333,stroke-width:1px,color:#fff
+    P2["Phase 2<br/>Computer Vision Foundations"]
+    P21["2.1 color_control.py"]
+    P22["2.2 lane_detect_node.py"]
+    P23["2.3 lane_keep_node.py"]
+
+    P3["Phase 3<br/>Spatial Safety and AI"]
+    P31["3.1 lidar_detect_node.py"]
+    P32["3.2 lidar_avoidance_node.py"]
+    P33["3.3 yolo_logic_node.py"]
+
+    P4["Phase 4<br/>Human-Robot Interaction"]
+    P41["4.1 hand_control.py"]
+
+    P5["Phase 5<br/>FSD System"]
+    FSD["fsd_master.launch.py"]
+
+    Start --> P1
+    P1 --> P11 --> P12 --> P13 --> P14
+    P14 --> P2
+    P2 --> P21 --> P22 --> P23
+    P23 --> P3
+    P3 --> P31 --> P32 --> P33
+    P33 --> P4
+    P4 --> P41
+    P41 --> P5 --> FSD
+
+    style Start fill:#6c429c,stroke:#333,stroke-width:2px,color:#fff
+    style P1 fill:#2f74c0,stroke:#333,stroke-width:2px,color:#fff
+    style P2 fill:#288b45,stroke:#333,stroke-width:2px,color:#fff
+    style P3 fill:#c94d2c,stroke:#333,stroke-width:2px,color:#fff
+    style P4 fill:#ff9800,stroke:#333,stroke-width:2px,color:#fff
+    style P5 fill:#607d8b,stroke:#333,stroke-width:2px,color:#fff
+    style FSD fill:#111111,stroke:#333,stroke-width:2px,color:#fff
 ```
+
+## How to Use This Page
+
+- Start at **Phase 1** and move left-to-right through the skills in order.
+- Open [[LEARNING_PATH]] for the exact commands, file paths, `setup.py` entries, and run instructions.
+- Use the **System Overview** page when you want the big-picture architecture instead of the step-by-step learning order.
     </script>
 
     <!-- Libraries (Local) -->
@@ -622,7 +621,7 @@ graph TD
 
         window.onload = () => {
             preloadContent();
-            showContent('root', document.getElementById('nav-root'));
+            showContent('graph', document.getElementById('nav-graph'));
         };
     </script>
 </body>
