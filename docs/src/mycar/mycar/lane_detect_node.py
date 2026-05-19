@@ -35,7 +35,7 @@ class LaneDetectNode(Node):
         self.base_speed = 0.1
         self.kp = 0.01 # Proportional gain
         
-        self.get_logger().info('Yellow Lane Detection Node Started with Enhanced Visualization.')
+        self.get_logger().info('Yellow Lane Detection Node Started (Headless Mode).')
 
     def image_callback(self, msg):
         try:
@@ -94,9 +94,10 @@ class LaneDetectNode(Node):
             # Tiled Visualization: Left (Original ROI), Right (Detection Mask)
             combined_view = np.hstack((roi, mask_rgb))
             
-            # Show the result window
-            cv2.imshow("Yellow Lane Detection (ROI vs Mask)", combined_view)
-            cv2.waitKey(1)
+            # Publish Debug Image to ROS topic (for RViz or Web Server)
+            # This avoids using cv2.imshow which fails in headless environments
+            debug_msg = self.bridge.cv2_to_imgmsg(combined_view, "bgr8")
+            self.debug_pub.publish(debug_msg)
             
         except Exception as e:
             self.get_logger().error(f'Lane Detection Error: {e}')
@@ -109,7 +110,6 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        cv2.destroyAllWindows()
         node.destroy_node()
         rclpy.shutdown()
 
