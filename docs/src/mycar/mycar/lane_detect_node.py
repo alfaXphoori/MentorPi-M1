@@ -106,8 +106,8 @@ class LaneDetectNode(Node):
                 cv2.putText(roi, "NO CONTOUR", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 self.publisher_.publish(Twist())
 
-            # Tiled Visualization: Left (Original ROI), Right (Detection Mask)
-            combined_view = np.hstack((roi, mask_rgb))
+            # Tiled Visualization: Top (Original ROI), Bottom (Detection Mask)
+            combined_view = np.vstack((roi, mask_rgb))
             
             # Publish Debug Image to ROS topic
             debug_msg = self.bridge.cv2_to_imgmsg(combined_view, "bgr8")
