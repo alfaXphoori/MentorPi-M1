@@ -15,6 +15,17 @@ Before writing autonomous code, first confirm that the robot, ROS 2 communicatio
     1. Start the robot base in Terminal 1: `ros2 launch bringup bringup.launch.py`
     2. Start keyboard teleoperation in Terminal 2: `ros2 run teleop_twist_keyboard teleop_twist_keyboard`
     3. (Optional) Monitor outgoing velocity commands in Terminal 3: `ros2 topic echo /cmd_vel`
+*   **Direct Command-Line Publishing via `/cmd_vel`:**
+    *   You can also send movement commands directly from the terminal without using the keyboard teleop tool:
+        ```bash
+        ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" --once
+        ```
+    *   This example publishes one forward-motion command with `linear.x = 0.2`.
+    *   To rotate in place, set `linear.x` to `0.0` and change `angular.z`, for example:
+        ```bash
+        ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.5}}" --once
+        ```
+    *   This method is useful for testing raw topic communication and understanding exactly what data is being sent to the robot.
 *   **Keyboard Commands:**
     *   **`i` / `,`**: Move forward / backward by changing `linear.x`
     *   **`j` / `l`**: Turn left / right by changing `angular.z`
