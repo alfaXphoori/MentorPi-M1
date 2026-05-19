@@ -7,17 +7,22 @@ Welcome to the MentorPi M1 robot FSD engineering track. This specialized learnin
 ## 🟢 Phase 1: Basic Motion Control
 **Objective:** Establishing communication with the hardware and mastering timed and sensor-based movement sequences.
 
-### 1.1 drive_node.py (The "Hello World" of Movement)
-Learn the basics of publishing to the `/cmd_vel` topic to make the robot move.
+### 1.1 Manual Control (Teleoperation)
+Before writing code, verify the hardware communication by driving the robot manually.
+*   **Action:** Launch `bringup.launch.py` in one terminal, then run `ros2 run teleop_twist_keyboard teleop_twist_keyboard` in another.
+*   **Key Concept:** Using the `W/A/S/D` keys to publish `Twist` messages directly to the `/cmd_vel` topic.
+
+### 1.2 drive_node.py (The "Hello World" of Movement)
+Learn the basics of publishing to the `/cmd_vel` topic from a Python script to make the robot move autonomously.
 *   **Key Concept:** `geometry_msgs/Twist` message structure.
 *   **Logic:** Continuous publication of linear and angular velocity.
 
-### 1.2 square_move.py (Timed Sequences)
+### 1.3 square_move.py (Timed Sequences)
 Build on movement by adding time-based logic to perform a specific pattern.
-*   **Key Concept:** Using `time.sleep()` or timers to manage movement durations.
+*   **Key Concept:** Using `time.time()` or timers to manage movement durations.
 *   **Logic:** Drive forward for X seconds, then turn for Y seconds, repeated 4 times.
 
-### 1.3 imu_square_move.py (Precision with Sensors)
+### 1.4 imu_square_move.py (Precision with Sensors)
 Move from timed guesses to sensor-based precision using the Inertial Measurement Unit (IMU).
 *   **Key Concept:** Feedback loops and quaternion-to-yaw conversion.
 *   **Logic:** Use IMU yaw data to maintain a straight heading and perform exact 90-degree turns.
