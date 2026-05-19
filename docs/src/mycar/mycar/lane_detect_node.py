@@ -1,10 +1,11 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, Imu
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+import math
 
 class LaneDetectNode(Node):
     def __init__(self):
@@ -16,8 +17,20 @@ class LaneDetectNode(Node):
             '/ascamera/camera_publisher/rgb0/image',
             self.image_callback,
             10)
+        self.imu_sub = self.create_subscription(
+            Imu,
+            '/imu',
+            self.imu_callback,
+            10)
         self.bridge = CvBridge()
         self.debug_pub = self.create_publisher(Image, '/lane_debug', 10)
+        
+        # State variables for IMU search
+        self.current_yaw = 0.0
+        self.imu_received = False
+        self.last_error = 0.0
+        self.searching = False
+        self.target_yaw = 0.0
         
         # Declare and Get Parameters
         self.declare_parameter('lower_yellow', [20, 100, 100])
@@ -41,6 +54,18 @@ class LaneDetectNode(Node):
         self.target_x_ratio = self.get_parameter('target_x_ratio').value
 
         self.get_logger().info(f'Lane Detection Started. Mode: {"White" if self.use_white else "Yellow"}')
+
+    def imu_callback(self, msg):
+        q = msg.orientation
+        siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+        cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
+        self.current_yaw = math.atan2(siny_cosp, cosy_cosp)
+        self.imu_received = True
+
+    def normalize_angle(self, angle):
+        while angle > math.pi: angle -= 2 * math.pi
+        while angle < -math.pi: angle += 2 * math.pi
+        return angle
 
     def image_callback(self, msg):
         try:
@@ -74,9 +99,13 @@ class LaneDetectNode(Node):
             twist = Twist()
             
             if M['m00'] > 500: 
+                if self.searching:
+                    self.get_logger().info('Line found! Resuming lane tracking.')
+                self.searching = False
                 cx = int(M['m10']/M['m00'])
                 target_x = int(w * self.target_x_ratio)
                 error = cx - target_x
+                self.last_error = error
                 
                 twist.linear.x = self.base_speed
                 twist.angular.z = -float(error) * self.kp
@@ -89,9 +118,35 @@ class LaneDetectNode(Node):
                     # Draw screen center for reference (thin blue line)
                     cv2.line(roi, (int(w/2), 0), (int(w/2), roi_bottom-roi_top), (255, 0, 0), 1)
             else:
-                # Line lost logic: stop or slow turn to find it
-                twist.linear.x = 0.0
-                twist.angular.z = 0.0
+                # Line lost logic: use IMU to turn and find it
+                if not self.searching and self.imu_received:
+                    self.searching = True
+                    # Positive error -> line was on the right -> turn right (negative angular.z)
+                    turn_direction = -1.0 if self.last_error > 0 else 1.0
+                    # Set target yaw to 90 degrees from current
+                    self.target_yaw = self.normalize_angle(self.current_yaw + (turn_direction * math.pi / 2))
+                    self.get_logger().info('Curve detected! Lost line. Searching using IMU...')
+
+                if self.searching and self.imu_received:
+                    yaw_error = self.normalize_angle(self.target_yaw - self.current_yaw)
+                    if abs(yaw_error) < 0.1: # Reached target
+                        twist.linear.x = 0.0
+                        twist.angular.z = 0.0
+                    else:
+                        twist.linear.x = 0.08 # Move forward slightly while turning
+                        twist.angular.z = 0.8 * yaw_error
+                        
+                        # Clamp turn speed to prevent getting stuck or spinning too fast
+                        max_turn = 0.5
+                        min_turn = 0.2
+                        if twist.angular.z > 0:
+                            twist.angular.z = max(min(twist.angular.z, max_turn), min_turn)
+                        else:
+                            twist.angular.z = min(max(twist.angular.z, -max_turn), -min_turn)
+                else:
+                    # No IMU or not searching yet
+                    twist.linear.x = 0.0
+                    twist.angular.z = 0.0
                 
             self.publisher_.publish(twist)
 
