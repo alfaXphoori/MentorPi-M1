@@ -343,6 +343,9 @@
                     <a class="nav-link" href="#" id="nav-learning_path" onclick="showContent('learning_path', this)">🎓 Learning Path</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#" id="nav-graph_view" onclick="showContent('graph_view', this)">🕸️ Graph View</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#" id="nav-root" onclick="showContent('root', this)">🏠 System Overview</a>
                 </li>
                 <li class="nav-item mt-3 mb-1 px-3" style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-color); opacity: 0.7;">Packages</li>
@@ -425,6 +428,108 @@ graph TD
 - Start at **Phase 1** and move left-to-right through the skills in order.
 - Open [[LEARNING_PATH]] for the exact commands, file paths, `setup.py` entries, and run instructions.
 - Use the **System Overview** page when you want the big-picture architecture instead of the step-by-step learning order.
+    </script>
+
+    <script type="text/markdown" id="graph_view">
+# 🕸️ Obsidian-Style Graph View
+
+This page shows the **Learning Path** as a note-style relationship graph, similar to an Obsidian graph view. The center note is [[LEARNING_PATH]], the colored clusters are learning phases, and the surrounding notes are supporting documentation pages.
+
+```mermaid
+graph LR
+    LP(("LEARNING_PATH"))
+
+    P1(("Phase 1"))
+    P2(("Phase 2"))
+    P3(("Phase 3"))
+    P4(("Phase 4"))
+    P5(("Phase 5"))
+
+    L11["1.1 Manual Control"]
+    L12["1.2 drive_node.py"]
+    L13["1.3 square_move.py"]
+    L14["1.4 imu_square_move.py"]
+    L21["2.1 color_control.py"]
+    L22["2.2 lane_detect_node.py"]
+    L23["2.3 lane_keep_node.py"]
+    L31["3.1 lidar_detect_node.py"]
+    L32["3.2 lidar_avoidance_node.py"]
+    L33["3.3 yolo_logic_node.py"]
+    L41["4.1 hand_control.py"]
+    L50["fsd_master.launch.py"]
+
+    BR["bringup"]
+    DR["driver"]
+    PE["peripherals"]
+    CA["calibration"]
+    IF["interfaces"]
+    YO["yolov5_ros2"]
+    SO["System Overview"]
+
+    LP --- P1
+    LP --- P2
+    LP --- P3
+    LP --- P4
+    LP --- P5
+
+    P1 --- L11
+    P1 --- L12
+    P1 --- L13
+    P1 --- L14
+
+    P2 --- L21
+    P2 --- L22
+    P2 --- L23
+
+    P3 --- L31
+    P3 --- L32
+    P3 --- L33
+
+    P4 --- L41
+    P5 --- L50
+
+    L11 --- BR
+    L11 --- DR
+    L12 --- DR
+    L13 --- DR
+    L14 --- CA
+    L14 --- DR
+
+    L21 --- PE
+    L22 --- PE
+    L23 --- PE
+
+    L31 --- PE
+    L32 --- PE
+    L33 --- YO
+    L33 --- IF
+
+    L41 --- PE
+    L50 --- SO
+    L50 --- YO
+    L50 --- IF
+
+    style LP fill:#6c429c,stroke:#333,stroke-width:3px,color:#fff
+    style P1 fill:#2f74c0,stroke:#333,stroke-width:2px,color:#fff
+    style P2 fill:#288b45,stroke:#333,stroke-width:2px,color:#fff
+    style P3 fill:#c94d2c,stroke:#333,stroke-width:2px,color:#fff
+    style P4 fill:#ff9800,stroke:#333,stroke-width:2px,color:#fff
+    style P5 fill:#607d8b,stroke:#333,stroke-width:2px,color:#fff
+    style BR fill:#444,stroke:#333,stroke-width:1px,color:#fff
+    style DR fill:#444,stroke:#333,stroke-width:1px,color:#fff
+    style PE fill:#444,stroke:#333,stroke-width:1px,color:#fff
+    style CA fill:#444,stroke:#333,stroke-width:1px,color:#fff
+    style IF fill:#444,stroke:#333,stroke-width:1px,color:#fff
+    style YO fill:#444,stroke:#333,stroke-width:1px,color:#fff
+    style SO fill:#444,stroke:#333,stroke-width:1px,color:#fff
+```
+
+## Reading Guide
+
+- **Center note:** the main learning document, [[LEARNING_PATH]]
+- **Colored nodes:** the five learning phases
+- **Dark outer nodes:** supporting docs that help specific lessons
+- Open **Learning Path** when you want the exact commands; open **System Overview** when you want the architecture summary
     </script>
 
     <!-- Libraries (Local) -->
@@ -583,9 +688,9 @@ graph TD
             element.classList.add('active');
 
             let markdown = "";
-            if (id === 'graph') {
-                const scriptTag = document.getElementById(id);
-                if (scriptTag) markdown = scriptTag.textContent;
+            const scriptTag = document.getElementById(id);
+            if (scriptTag) {
+                markdown = scriptTag.textContent;
             } else {
                 const filePath = fileMap[id];
                 try {
