@@ -16,27 +16,26 @@ class LidarAvoidanceNode(Node):
             self.scan_callback,
             10)
             
-        # Publisher for avoidance velocity (Target: Mission Manager)
-        self.publisher_ = self.create_publisher(Twist, '/avoid_vel', 10)
+        # DIRECT PUBLISH to the robot motors
+        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
         self.status_pub = self.create_publisher(String, '/avoid_status', 10)
         
-        # Parameters for Avoidance
-        self.declare_parameter('max_speed', 0.12)
-        self.declare_parameter('danger_dist', 0.3)    # Stop and wait
-        self.declare_parameter('avoid_dist', 0.6)     # Start dodging
+        # Parameters
+        self.declare_parameter('max_speed', 0.15)
+        self.declare_parameter('danger_dist', 0.3)
+        self.declare_parameter('avoid_dist', 0.7)
         
         self.max_speed = self.get_parameter('max_speed').value
         self.danger_dist = self.get_parameter('danger_dist').value
         self.avoid_dist = self.get_parameter('avoid_dist').value
         
-        self.get_logger().info('Lidar Avoidance Node (Active Dodge) Started.')
+        self.get_logger().info('Lidar Avoidance Node (STANDALONE MODE) Started. Direct control of /cmd_vel.')
 
     def scan_callback(self, msg):
         num_points = len(msg.ranges)
         angle_min = msg.angle_min
         angle_increment = msg.angle_increment
         
-        # Sectors for dodging (Front-Left: 0 to 30, Front-Right: -30 to 0)
         left_ranges = []
         right_ranges = []
         
@@ -45,14 +44,11 @@ class LidarAvoidanceNode(Node):
             dist = msg.ranges[i]
             
             if msg.range_min < dist < msg.range_max:
-                # Left sector (0 to 0.52 rad / 0 to 30 deg)
-                if 0 <= angle < 0.52:
+                if 0 <= angle < 0.52: # 0 to 30 deg (Left)
                     left_ranges.append(dist)
-                # Right sector (-0.52 to 0 rad / -30 to 0 deg)
-                elif -0.52 < angle < 0:
+                elif -0.52 < angle < 0: # -30 to 0 deg (Right)
                     right_ranges.append(dist)
         
-        # Calculate minimum distances per sector
         min_left = min(left_ranges) if left_ranges else 10.0
         min_right = min(right_ranges) if right_ranges else 10.0
         min_total = min(min_left, min_right)
@@ -61,41 +57,32 @@ class LidarAvoidanceNode(Node):
         status = "CLEAR"
         
         if min_total < self.danger_dist:
-            # DANGER: Stop immediately
+            # STOP
             twist.linear.x = 0.0
             twist.angular.z = 0.0
             status = "DANGER_STOP"
-            self.get_logger().warn(f'DANGER! Obstacle at {min_total:.2f}m. STOPPING.')
+            # self.get_logger().warn('EMERGENCY STOP!')
             
         elif min_total < self.avoid_dist:
-            # AVOID: Steer away from the closer obstacle
+            # DODGE
             status = "AVOIDING"
-            twist.linear.x = self.max_speed * 0.6 # Slow down for safety
-            
-            # Logic: If left is blocked, turn right (negative Z)
-            # If right is blocked, turn left (positive Z)
-            # The closer the obstacle, the sharper the turn
-            diff = min_left - min_right
+            twist.linear.x = self.max_speed * 0.8
             
             if min_left < min_right:
-                # Obstacle is more on the left -> Turn Right
-                # Calculate turn intensity based on closeness
-                turn_strength = (self.avoid_dist - min_left) / self.avoid_dist
-                twist.angular.z = -0.5 - turn_strength # Base turn + extra
-                self.get_logger().info(f'Dodge RIGHT (L:{min_left:.2f}m R:{min_right:.2f}m)')
+                # Obstacle on left -> Turn Right
+                turn_intensity = (self.avoid_dist - min_left) / self.avoid_dist
+                twist.angular.z = -0.6 - (turn_intensity * 0.5)
             else:
-                # Obstacle is more on the right -> Turn Left
-                turn_strength = (self.avoid_dist - min_right) / self.avoid_dist
-                twist.angular.z = 0.5 + turn_strength
-                self.get_logger().info(f'Dodge LEFT (L:{min_left:.2f}m R:{min_right:.2f}m)')
+                # Obstacle on right -> Turn Left
+                turn_intensity = (self.avoid_dist - min_right) / self.avoid_dist
+                twist.angular.z = 0.6 + (turn_intensity * 0.5)
         else:
-            # CLEAR: No need for avoidance input
-            # We publish zero velocity so Mission Manager knows avoidance is idle
-            twist.linear.x = 0.0
+            # CRUISE (Move forward by itself)
+            twist.linear.x = self.max_speed
             twist.angular.z = 0.0
             status = "CLEAR"
 
-        # Publish
+        # Send command DIRECTLY to the motors
         self.publisher_.publish(twist)
         self.status_pub.publish(String(data=status))
 
