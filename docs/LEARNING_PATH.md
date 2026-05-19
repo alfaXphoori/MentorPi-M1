@@ -39,7 +39,26 @@ Before writing autonomous code, first confirm that the robot, ROS 2 communicatio
 *   **Why This Matters:** Every later movement node in this learning path will also publish to `/cmd_vel`. If teleoperation works, your software stack, topic routing, and low-level motion interface are already connected correctly.
 
 ### 1.2 drive_node.py (The "Hello World" of Movement)
-Learn the basics of publishing to the `/cmd_vel` topic from a Python script to make the robot move autonomously.
+Learn the basics of publishing to the `/cmd_vel` topic from a Python script to make the robot move autonomously. Start by creating your own ROS 2 Python package so the node lives in a clean workspace structure.
+*   **Start by Creating a New Package:**
+    1. Go to your ROS 2 workspace source directory:
+        ```bash
+        cd ~/ros2_ws/src
+        ```
+    2. Create a new Python package:
+        ```bash
+        ros2 pkg create --build-type ament_python mycar
+        ```
+    3. Build the workspace:
+        ```bash
+        cd ~/ros2_ws
+        colcon build
+        ```
+    4. Source the workspace:
+        ```bash
+        source install/setup.bash
+        ```
+*   **Next Step:** Add `drive_node.py` inside the package and use it as your first autonomous publisher for `/cmd_vel`.
 *   **Key Concept:** `geometry_msgs/Twist` message structure.
 *   **Logic:** Continuous publication of linear and angular velocity.
 
