@@ -52,7 +52,7 @@ Learn the basics of publishing to the `/cmd_vel` topic from a Python script to m
     3. Build the workspace:
         ```bash
         cd ~/ros2_ws
-        colcon build
+        colcon build --packages-select mycar
         ```
     4. Source the workspace:
         ```bash
