@@ -61,35 +61,48 @@ class LaneDetectNode(Node):
             mask = cv2.erode(mask, kernel, iterations=1)
             mask = cv2.dilate(mask, kernel, iterations=2)
             
-            # 4. Find the center of the detected line (Moments)
-            M = cv2.moments(mask)
+            # 4. Find the center and bounding box of the detected line
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
             # Create a debug image by combining ROI and the mask
             mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
             
-            if M['m00'] > 0:
-                cx = int(M['m10'] / M['m00'])
-                cy = int(M['m01'] / M['m00'])
+            if contours:
+                # Find the largest contour to avoid noise
+                c = max(contours, key=cv2.contourArea)
                 
-                # Draw visual markers on the original ROI
-                cv2.circle(roi, (cx, cy), 7, (0, 0, 255), -1) # Red dot at centroid
-                cv2.line(roi, (w//2, 0), (w//2, roi.shape[0]), (255, 0, 0), 1) # Blue centerline
-                cv2.line(roi, (w//2, cy), (cx, cy), (0, 255, 0), 2) # Green error line
+                # Calculate moments for the largest contour
+                M = cv2.moments(c)
                 
-                # 5. Steering Logic
-                error = cx - w/2
-                
-                twist = Twist()
-                twist.linear.x = self.base_speed
-                twist.angular.z = -float(error) * self.kp
-                
-                self.publisher_.publish(twist)
-                
-                # Add status text
-                cv2.putText(roi, f"Error: {error}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                if M['m00'] > 0:
+                    cx = int(M['m10'] / M['m00'])
+                    cy = int(M['m01'] / M['m00'])
+                    
+                    # Get and draw bounding box
+                    bx, by, bw, bh = cv2.boundingRect(c)
+                    cv2.rectangle(roi, (bx, by), (bx + bw, by + bh), (0, 255, 255), 2) # Yellow box
+                    
+                    # Draw visual markers on the original ROI
+                    cv2.circle(roi, (cx, cy), 7, (0, 0, 255), -1) # Red dot at centroid
+                    cv2.line(roi, (w//2, 0), (w//2, roi.shape[0]), (255, 0, 0), 1) # Blue centerline
+                    cv2.line(roi, (w//2, cy), (cx, cy), (0, 255, 0), 2) # Green error line
+                    
+                    # 5. Steering Logic
+                    error = cx - w/2
+                    
+                    twist = Twist()
+                    twist.linear.x = self.base_speed
+                    twist.angular.z = -float(error) * self.kp
+                    
+                    self.publisher_.publish(twist)
+                    
+                    # Add status text
+                    cv2.putText(roi, f"Error: {error}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                else:
+                    cv2.putText(roi, "LINE LOST", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                    self.publisher_.publish(Twist())
             else:
-                cv2.putText(roi, "LINE LOST", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-                # Stop if line is lost
+                cv2.putText(roi, "NO CONTOUR", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 self.publisher_.publish(Twist())
 
             # Tiled Visualization: Left (Original ROI), Right (Detection Mask)
