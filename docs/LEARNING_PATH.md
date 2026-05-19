@@ -66,6 +66,9 @@ Learn the basics of publishing to the `/cmd_vel` topic from a Python script to m
             ],
         },
         ```
+*   **File Locations to Copy Into:**
+    *   **Node file:** `~/ros2_ws/src/mycar/mycar/drive_node.py`
+    *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
     6. Build only the `mycar` package:
         ```bash
         cd ~/ros2_ws
