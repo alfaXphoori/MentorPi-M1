@@ -133,6 +133,10 @@ The first step in vision: making movement decisions based on detected colors fro
     colcon build --packages-select mycar
     ros2 run mycar color_control_node
     ```
+*   **Optional Image Viewer (`rqt_image_view`):**
+    ```bash
+    ros2 run rqt_image_view rqt_image_view /ascamera/camera_publisher/rgb0/image
+    ```
 *   **What the Node Does:** Subscribes to `/ascamera/camera_publisher/rgb0/image`, crops a small center ROI, converts it to HSV, and starts or stops the robot by publishing to `/cmd_vel`.
 *   **Behavior:** Green starts forward motion; red stops the robot.
 *   **Key Concept:** HSV color analysis and fast ROI-based vision processing.
@@ -153,6 +157,10 @@ Detect and follow a yellow lane marking using a single Region of Interest at the
     colcon build --packages-select mycar
     ros2 run mycar lane_detect_node
     ```
+*   **Optional Image Viewer (`rqt_image_view`):**
+    ```bash
+    ros2 run rqt_image_view rqt_image_view /lane_debug
+    ```
 *   **What the Node Does:** Subscribes to the camera image, isolates the lower image region, detects yellow in LAB color space, computes the centroid, and publishes steering corrections to `/cmd_vel`.
 *   **Debug Output:** Publishes a visualization image on `/lane_debug`.
 *   **Key Concept:** LAB thresholding, contour extraction, image moments, and proportional steering control.
@@ -172,6 +180,10 @@ Upgrade lane following by using three ROIs so the robot can react to both the cu
     cd ~/ros2_ws
     colcon build --packages-select mycar
     ros2 run mycar lane_keep_node
+    ```
+*   **Optional Image Viewer (`rqt_image_view`):**
+    ```bash
+    ros2 run rqt_image_view rqt_image_view /lane_keep_debug
     ```
 *   **What the Node Does:** Tracks the yellow lane in Near, Mid, and Far ROIs, computes a weighted target point, and publishes the result to `/lane_vel` for later use by a mission manager.
 *   **Important Note:** This node is designed for integration and does **not** publish directly to `/cmd_vel`.
@@ -199,6 +211,11 @@ Learn to process 2D LiDAR data to measure the nearest obstacle in front of the r
     colcon build --packages-select mycar
     ros2 run mycar lidar_detect_node
     ```
+*   **Optional LiDAR Viewer (`rviz2`):**
+    ```bash
+    rviz2
+    ```
+    Add a **LaserScan** display and set the topic to `/scan_raw`.
 *   **What the Node Does:** Subscribes to `/scan_raw`, checks the front sector from about `-30` to `+30` degrees, and publishes the nearest front distance on `/lidar_dist_front` plus a text status on `/lidar_status`.
 *   **Status Output:** `CLEAR`, `OBSTACLE_DETECTED`, or `OBSTACLE_NEAR`.
 *   **Key Concept:** `sensor_msgs/LaserScan` sector filtering and minimum-distance extraction.
@@ -219,6 +236,11 @@ Move beyond obstacle detection by steering away from nearby objects automaticall
     colcon build --packages-select mycar
     ros2 run mycar lidar_avoidance_node
     ```
+*   **Optional LiDAR Viewer (`rviz2`):**
+    ```bash
+    rviz2
+    ```
+    Add a **LaserScan** display and set the topic to `/scan_raw`.
 *   **What the Node Does:** Reads `/scan_raw`, compares left and right obstacle distances, and publishes a direct avoidance command to `/cmd_vel` together with a status message on `/avoid_status`.
 *   **Behavior:** If an obstacle is closer on the left, the robot turns right; if it is closer on the right, the robot turns left.
 *   **Key Concept:** Reactive obstacle avoidance using directional distance comparison.
@@ -238,6 +260,10 @@ Integrate deep learning detections so the robot can change behavior when it sees
     cd ~/ros2_ws
     colcon build --packages-select mycar
     ros2 run mycar yolo_logic_node
+    ```
+*   **Optional Image Viewer (`rqt_image_view`):**
+    ```bash
+    ros2 run rqt_image_view rqt_image_view /yolov5_ros2/result_img
     ```
 *   **What the Node Does:** Subscribes to `/yolov5_ros2/object_detect`, interprets recognized classes, and publishes temporary maneuver commands to `/yolo_vel`.
 *   **Behavior Mapping:** `R` or `turn_right` triggers a right turn, `S` or `go_straight` moves forward, and `P`, `parking`, or `stop` triggers a stop behavior.
@@ -264,6 +290,10 @@ Use MediaPipe hand tracking so the robot responds to finger-count gestures from 
     cd ~/ros2_ws
     colcon build --packages-select mycar
     ros2 run mycar hand_control_node
+    ```
+*   **Optional Image Viewer (`rqt_image_view`):**
+    ```bash
+    ros2 run rqt_image_view rqt_image_view /ascamera/camera_publisher/rgb0/image
     ```
 *   **What the Node Does:** Subscribes to the camera image, runs MediaPipe Hands, counts raised fingers, and publishes motion commands directly to `/cmd_vel`.
 *   **Behavior:** Showing `1` or `2` fingers starts forward motion; showing `5` fingers stops the robot.
