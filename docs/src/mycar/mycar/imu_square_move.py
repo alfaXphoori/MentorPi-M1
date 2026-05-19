@@ -11,7 +11,7 @@ class ImuSquareMove(Node):
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
         self.imu_subscription = self.create_subscription(
             Imu,
-            '/imu/data',
+            '/imu',
             self.imu_callback,
             10)
         

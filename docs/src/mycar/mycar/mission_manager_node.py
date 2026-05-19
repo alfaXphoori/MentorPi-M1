@@ -14,7 +14,7 @@ class MissionManager(Node):
         self.lane_sub = self.create_subscription(Twist, '/lane_vel', self.lane_callback, 10)
         self.yolo_sub = self.create_subscription(Twist, '/yolo_vel', self.yolo_callback, 10)
         self.lidar_sub = self.create_subscription(Twist, '/lidar_vel', self.lidar_callback, 10)
-        self.imu_sub = self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
+        self.imu_sub = self.create_subscription(Imu, '/imu', self.imu_callback, 10)
         
         # Publishers
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
