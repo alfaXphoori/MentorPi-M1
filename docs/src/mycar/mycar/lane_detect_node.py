@@ -9,8 +9,8 @@ import numpy as np
 class LaneDetectNode(Node):
     def __init__(self):
         super().__init__('lane_detect_node')
-        # Change to specialized topic for multiplexer
-        self.publisher_ = self.create_publisher(Twist, '/lane_vel', 10)
+        # Publish directly to robot base controller
+        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
         self.subscription = self.create_subscription(
             Image,
             '/ascamera/camera_publisher/rgb0/image',
