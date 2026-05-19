@@ -11,7 +11,7 @@ class LidarAvoidanceNode(Node):
         # Subscriber to LiDAR data
         self.subscription = self.create_subscription(
             LaserScan,
-            '/scan',
+            '/scan_raw',
             self.scan_callback,
             10)
             
