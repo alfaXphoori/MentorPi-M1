@@ -18,7 +18,7 @@ class LaneDetectNode(Node):
         self.declare_parameter('camera_topic', '/ascamera/camera_publisher/rgb0/image')
         
         # Publishers & Subscribers
-        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.publisher_ = self.create_publisher(Twist, '/lane_vel', 10)
         
         camera_topic = self.get_parameter('camera_topic').get_parameter_value().string_value
         self.image_sub = self.create_subscription(
