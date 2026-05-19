@@ -71,6 +71,10 @@ Learn the basics of publishing to the `/cmd_vel` topic from a Python script to m
         cd ~/ros2_ws
         colcon build --packages-select mycar
         ```
+    7. Run the node:
+        ```bash
+        ros2 run mycar drive_node
+        ```
 *   **Next Step:** Write the `drive_node.py` code and use it as your first autonomous publisher for `/cmd_vel`.
 *   **Key Concept:** `geometry_msgs/Twist` message structure.
 *   **Logic:** Continuous publication of linear and angular velocity.
