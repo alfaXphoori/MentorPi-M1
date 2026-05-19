@@ -28,11 +28,9 @@ setup(
             'imu_square_node = mycar.imu_square_move:main',
             'hand_control_node = mycar.hand_control:main',
             'color_control_node = mycar.color_control:main',
-            'lane_detect_node = mycar.lane_detect_node:main',
+            'lane_keep_fsd = mycar.lane_keep_fsd:main',
             'yolo_logic_node = mycar.yolo_logic_node:main',
             'lidar_avoidance_node = mycar.lidar_avoidance_node:main',
-            'mission_manager_node = mycar.mission_manager_node:main',
-            'camera_tilt_node = mycar.camera_tilt_node:main',
         ],
     },
 )
