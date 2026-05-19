@@ -26,7 +26,7 @@ class LaneDetectNode(Node):
         self.declare_parameter('use_white', False) # Option to switch to white lines
         self.declare_parameter('base_speed', 0.15)
         self.declare_parameter('kp', 0.005)
-        self.declare_parameter('show_debug', False)
+        self.declare_parameter('show_debug', True)
 
         self.lower_yellow = np.array(self.get_parameter('lower_yellow').value, dtype=np.uint8)
         self.upper_yellow = np.array(self.get_parameter('upper_yellow').value, dtype=np.uint8)
