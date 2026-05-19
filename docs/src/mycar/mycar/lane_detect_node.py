@@ -43,7 +43,7 @@ class LaneDetectNode(Node):
         self.declare_parameter('kp', 0.005)
         self.declare_parameter('show_debug', True)
         self.declare_parameter('target_x_ratio', 0.5) # Default 0.5 = Center of lane
-        self.declare_parameter('roi_top_ratio', 0.45) # Look further ahead (default was 0.65)
+        self.declare_parameter('roi_top_ratio', 0.25) # Look further ahead
         self.declare_parameter('roi_bottom_ratio', 0.95)
 
         self.lower_yellow = np.array(self.get_parameter('lower_yellow').value, dtype=np.uint8)
