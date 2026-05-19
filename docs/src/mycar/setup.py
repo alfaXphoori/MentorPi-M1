@@ -34,6 +34,9 @@ setup(
             'yolo_logic_node = mycar.yolo_logic_node:main',
             'lidar_detect_node = mycar.lidar_detect_node:main',
             'lidar_avoidance_node = mycar.lidar_avoidance_node:main',
+            'fsd_lane_keep = mycar.fsd_lane_keep:main',
+            'fsd_lidar_safety = mycar.fsd_lidar_safety:main',
+            'fsd_mission_manager = mycar.fsd_mission_manager:main',
         ],
     },
 )
