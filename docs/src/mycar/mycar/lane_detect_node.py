@@ -139,12 +139,15 @@ class LaneDetectNode(Node):
                         twist.linear.x = 0.0
                         twist.angular.z = 0.0
                     else:
-                        twist.linear.x = 0.05
+                        twist.linear.x = 0.0
                         twist.angular.z = 0.6 * yaw_error
-                        # clamp turn speed
+                        # clamp turn speed to min/max to overcome static friction
                         max_turn = 0.8
-                        if twist.angular.z > max_turn: twist.angular.z = max_turn
-                        elif twist.angular.z < -max_turn: twist.angular.z = -max_turn
+                        min_turn = 0.35
+                        if twist.angular.z > 0:
+                            twist.angular.z = max(min_turn, min(twist.angular.z, max_turn))
+                        else:
+                            twist.angular.z = min(-min_turn, max(twist.angular.z, -max_turn))
                 else:
                     twist.linear.x = 0.0
                     twist.angular.z = 0.0
