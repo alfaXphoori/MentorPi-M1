@@ -231,6 +231,71 @@
             border: 1px solid var(--border-color);
         }
 
+        .interactive-graph-shell {
+            margin: 28px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: var(--code-bg);
+        }
+        .interactive-graph-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+        }
+        .interactive-graph-hint {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        .interactive-graph-controls {
+            display: flex;
+            gap: 8px;
+        }
+        .interactive-graph-stage {
+            position: relative;
+            height: 680px;
+            cursor: grab;
+            overflow: hidden;
+            touch-action: none;
+            background-color: var(--code-bg);
+            background-image: radial-gradient(var(--border-color) 1px, transparent 0);
+            background-size: 24px 24px;
+            background-position: -12px -12px;
+        }
+        .interactive-graph-stage.panning {
+            cursor: grabbing;
+        }
+        .interactive-graph-stage svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .interactive-graph-link {
+            stroke: var(--border-color);
+            stroke-opacity: 0.75;
+            stroke-width: 1.5;
+            pointer-events: none;
+        }
+        .interactive-graph-node {
+            cursor: pointer;
+        }
+        .interactive-graph-node circle {
+            stroke: rgba(255, 255, 255, 0.18);
+            stroke-width: 2;
+        }
+        .interactive-graph-node text {
+            fill: var(--text-color);
+            font-size: 13px;
+            font-weight: 600;
+            dominant-baseline: middle;
+            user-select: none;
+            pointer-events: none;
+        }
+
         /* Mobile Toggle Button */
         #sidebar-toggle {
             display: none;
@@ -435,94 +500,15 @@ graph TD
 
 This page shows the **Learning Path** as a note-style relationship graph, similar to an Obsidian graph view. The center note is [[LEARNING_PATH]], the colored clusters are learning phases, and the surrounding notes are supporting documentation pages.
 
-```mermaid
-graph LR
-    LP(("LEARNING_PATH"))
-
-    P1(("Phase 1"))
-    P2(("Phase 2"))
-    P3(("Phase 3"))
-    P4(("Phase 4"))
-    P5(("Phase 5"))
-
-    L11["1.1 Manual Control"]
-    L12["1.2 drive_node.py"]
-    L13["1.3 square_move.py"]
-    L14["1.4 imu_square_move.py"]
-    L21["2.1 color_control.py"]
-    L22["2.2 lane_detect_node.py"]
-    L23["2.3 lane_keep_node.py"]
-    L31["3.1 lidar_detect_node.py"]
-    L32["3.2 lidar_avoidance_node.py"]
-    L33["3.3 yolo_logic_node.py"]
-    L41["4.1 hand_control.py"]
-    L50["fsd_master.launch.py"]
-
-    BR["bringup"]
-    DR["driver"]
-    PE["peripherals"]
-    CA["calibration"]
-    IF["interfaces"]
-    YO["yolov5_ros2"]
-    SO["System Overview"]
-
-    LP --- P1
-    LP --- P2
-    LP --- P3
-    LP --- P4
-    LP --- P5
-
-    P1 --- L11
-    P1 --- L12
-    P1 --- L13
-    P1 --- L14
-
-    P2 --- L21
-    P2 --- L22
-    P2 --- L23
-
-    P3 --- L31
-    P3 --- L32
-    P3 --- L33
-
-    P4 --- L41
-    P5 --- L50
-
-    L11 --- BR
-    L11 --- DR
-    L12 --- DR
-    L13 --- DR
-    L14 --- CA
-    L14 --- DR
-
-    L21 --- PE
-    L22 --- PE
-    L23 --- PE
-
-    L31 --- PE
-    L32 --- PE
-    L33 --- YO
-    L33 --- IF
-
-    L41 --- PE
-    L50 --- SO
-    L50 --- YO
-    L50 --- IF
-
-    style LP fill:#6c429c,stroke:#333,stroke-width:3px,color:#fff
-    style P1 fill:#2f74c0,stroke:#333,stroke-width:2px,color:#fff
-    style P2 fill:#288b45,stroke:#333,stroke-width:2px,color:#fff
-    style P3 fill:#c94d2c,stroke:#333,stroke-width:2px,color:#fff
-    style P4 fill:#ff9800,stroke:#333,stroke-width:2px,color:#fff
-    style P5 fill:#607d8b,stroke:#333,stroke-width:2px,color:#fff
-    style BR fill:#444,stroke:#333,stroke-width:1px,color:#fff
-    style DR fill:#444,stroke:#333,stroke-width:1px,color:#fff
-    style PE fill:#444,stroke:#333,stroke-width:1px,color:#fff
-    style CA fill:#444,stroke:#333,stroke-width:1px,color:#fff
-    style IF fill:#444,stroke:#333,stroke-width:1px,color:#fff
-    style YO fill:#444,stroke:#333,stroke-width:1px,color:#fff
-    style SO fill:#444,stroke:#333,stroke-width:1px,color:#fff
-```
+<div class="interactive-graph-shell">
+  <div class="interactive-graph-toolbar">
+    <div class="interactive-graph-hint">Drag nodes, drag the background to pan, and use the mouse wheel to zoom.</div>
+    <div class="interactive-graph-controls">
+      <button class="action-btn-top" id="graph-reset-view" type="button">Reset View</button>
+    </div>
+  </div>
+  <div id="obsidian-graph-view" class="interactive-graph-stage"></div>
+</div>
 
 ## Reading Guide
 
@@ -603,6 +589,334 @@ graph LR
             mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme() });
         }
 
+        const learningGraphData = {
+            nodes: [
+                { id: 'lp', label: 'LEARNING_PATH', group: 'root', radius: 18 },
+                { id: 'p1', label: 'Phase 1', group: 'phase1', radius: 14 },
+                { id: 'p2', label: 'Phase 2', group: 'phase2', radius: 14 },
+                { id: 'p3', label: 'Phase 3', group: 'phase3', radius: 14 },
+                { id: 'p4', label: 'Phase 4', group: 'phase4', radius: 14 },
+                { id: 'p5', label: 'Phase 5', group: 'phase5', radius: 14 },
+                { id: 'l11', label: '1.1 Manual Control', group: 'phase1-lite', radius: 10 },
+                { id: 'l12', label: '1.2 drive_node.py', group: 'phase1-lite', radius: 10 },
+                { id: 'l13', label: '1.3 square_move.py', group: 'phase1-lite', radius: 10 },
+                { id: 'l14', label: '1.4 imu_square_move.py', group: 'phase1-lite', radius: 10 },
+                { id: 'l21', label: '2.1 color_control.py', group: 'phase2-lite', radius: 10 },
+                { id: 'l22', label: '2.2 lane_detect_node.py', group: 'phase2-lite', radius: 10 },
+                { id: 'l23', label: '2.3 lane_keep_node.py', group: 'phase2-lite', radius: 10 },
+                { id: 'l31', label: '3.1 lidar_detect_node.py', group: 'phase3-lite', radius: 10 },
+                { id: 'l32', label: '3.2 lidar_avoidance_node.py', group: 'phase3-lite', radius: 10 },
+                { id: 'l33', label: '3.3 yolo_logic_node.py', group: 'phase3-lite', radius: 10 },
+                { id: 'l41', label: '4.1 hand_control.py', group: 'phase4-lite', radius: 10 },
+                { id: 'l50', label: 'fsd_master.launch.py', group: 'phase5-lite', radius: 10 },
+                { id: 'bringup', label: 'bringup', group: 'support', radius: 8 },
+                { id: 'driver', label: 'driver', group: 'support', radius: 8 },
+                { id: 'peripherals', label: 'peripherals', group: 'support', radius: 8 },
+                { id: 'calibration', label: 'calibration', group: 'support', radius: 8 },
+                { id: 'interfaces', label: 'interfaces', group: 'support', radius: 8 },
+                { id: 'yolo', label: 'yolov5_ros2', group: 'support', radius: 8 },
+                { id: 'overview', label: 'System Overview', group: 'support', radius: 8 }
+            ],
+            links: [
+                ['lp', 'p1'], ['lp', 'p2'], ['lp', 'p3'], ['lp', 'p4'], ['lp', 'p5'],
+                ['p1', 'l11'], ['p1', 'l12'], ['p1', 'l13'], ['p1', 'l14'],
+                ['p2', 'l21'], ['p2', 'l22'], ['p2', 'l23'],
+                ['p3', 'l31'], ['p3', 'l32'], ['p3', 'l33'],
+                ['p4', 'l41'], ['p5', 'l50'],
+                ['l11', 'bringup'], ['l11', 'driver'], ['l12', 'driver'], ['l13', 'driver'],
+                ['l14', 'calibration'], ['l14', 'driver'],
+                ['l21', 'peripherals'], ['l22', 'peripherals'], ['l23', 'peripherals'],
+                ['l31', 'peripherals'], ['l32', 'peripherals'], ['l33', 'yolo'], ['l33', 'interfaces'],
+                ['l41', 'peripherals'], ['l50', 'overview'], ['l50', 'yolo'], ['l50', 'interfaces']
+            ]
+        };
+
+        let activeGraphCleanup = null;
+
+        function getLearningGraphColor(group) {
+            const colors = {
+                'root': '#6c429c',
+                'phase1': '#2f74c0',
+                'phase2': '#288b45',
+                'phase3': '#c94d2c',
+                'phase4': '#ff9800',
+                'phase5': '#607d8b',
+                'phase1-lite': '#6ea7e8',
+                'phase2-lite': '#66c081',
+                'phase3-lite': '#e38c76',
+                'phase4-lite': '#ffc56b',
+                'phase5-lite': '#99aab6',
+                'support': '#5b6470'
+            };
+            return colors[group] || '#888888';
+        }
+
+        function cleanupActiveGraph() {
+            if (typeof activeGraphCleanup === 'function') {
+                activeGraphCleanup();
+            }
+            activeGraphCleanup = null;
+        }
+
+        function createSvgElement(tag) {
+            return document.createElementNS('http://www.w3.org/2000/svg', tag);
+        }
+
+        function initLearningGraphView(container) {
+            if (!container) return null;
+
+            const stage = container;
+            const svg = createSvgElement('svg');
+            const viewport = createSvgElement('g');
+            const linkLayer = createSvgElement('g');
+            const nodeLayer = createSvgElement('g');
+            viewport.appendChild(linkLayer);
+            viewport.appendChild(nodeLayer);
+            svg.appendChild(viewport);
+            stage.innerHTML = '';
+            stage.appendChild(svg);
+
+            const nodes = learningGraphData.nodes.map((node, index) => ({
+                ...node,
+                x: Math.cos((index / learningGraphData.nodes.length) * Math.PI * 2) * (120 + (index % 4) * 35),
+                y: Math.sin((index / learningGraphData.nodes.length) * Math.PI * 2) * (120 + (index % 5) * 28),
+                vx: 0,
+                vy: 0,
+                fx: null,
+                fy: null
+            }));
+
+            const nodeMap = new Map(nodes.map(node => [node.id, node]));
+            const links = learningGraphData.links.map(([source, target]) => ({
+                source: nodeMap.get(source),
+                target: nodeMap.get(target),
+                distance: 110
+            }));
+
+            const linkEls = links.map(() => {
+                const line = createSvgElement('line');
+                line.setAttribute('class', 'interactive-graph-link');
+                linkLayer.appendChild(line);
+                return line;
+            });
+
+            const nodeEls = nodes.map(node => {
+                const group = createSvgElement('g');
+                group.setAttribute('class', 'interactive-graph-node');
+                const circle = createSvgElement('circle');
+                circle.setAttribute('r', String(node.radius));
+                circle.setAttribute('fill', getLearningGraphColor(node.group));
+                const text = createSvgElement('text');
+                text.setAttribute('x', String(node.radius + 8));
+                text.setAttribute('y', '1');
+                text.textContent = node.label;
+                group.appendChild(circle);
+                group.appendChild(text);
+                nodeLayer.appendChild(group);
+                return group;
+            });
+
+            let width = stage.clientWidth || 900;
+            let height = stage.clientHeight || 680;
+            let animationFrame = null;
+            let destroyed = false;
+            const transform = { x: width / 2, y: height / 2, scale: 1 };
+            const zoomLimits = { min: 0.55, max: 2.4 };
+            let draggedNode = null;
+            let panning = false;
+            let panStart = null;
+
+            function applyViewportTransform() {
+                viewport.setAttribute('transform', `translate(${transform.x}, ${transform.y}) scale(${transform.scale})`);
+            }
+
+            function toGraphPoint(clientX, clientY) {
+                const rect = stage.getBoundingClientRect();
+                return {
+                    x: (clientX - rect.left - transform.x) / transform.scale,
+                    y: (clientY - rect.top - transform.y) / transform.scale
+                };
+            }
+
+            function tick() {
+                if (destroyed) return;
+
+                const repelStrength = 12000;
+                const springStrength = 0.004;
+                const centerStrength = 0.0025;
+
+                for (let i = 0; i < nodes.length; i++) {
+                    for (let j = i + 1; j < nodes.length; j++) {
+                        const a = nodes[i];
+                        const b = nodes[j];
+                        let dx = b.x - a.x;
+                        let dy = b.y - a.y;
+                        let distSq = dx * dx + dy * dy;
+                        if (distSq < 1) distSq = 1;
+                        const dist = Math.sqrt(distSq);
+                        const force = repelStrength / distSq;
+                        const fx = (dx / dist) * force;
+                        const fy = (dy / dist) * force;
+                        a.vx -= fx;
+                        a.vy -= fy;
+                        b.vx += fx;
+                        b.vy += fy;
+                    }
+                }
+
+                for (const link of links) {
+                    const dx = link.target.x - link.source.x;
+                    const dy = link.target.y - link.source.y;
+                    const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+                    const stretch = dist - link.distance;
+                    const force = stretch * springStrength;
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+                    link.source.vx += fx;
+                    link.source.vy += fy;
+                    link.target.vx -= fx;
+                    link.target.vy -= fy;
+                }
+
+                for (const node of nodes) {
+                    if (node.fx !== null && node.fy !== null) {
+                        node.x = node.fx;
+                        node.y = node.fy;
+                        node.vx = 0;
+                        node.vy = 0;
+                        continue;
+                    }
+                    node.vx += (0 - node.x) * centerStrength;
+                    node.vy += (0 - node.y) * centerStrength;
+                    node.vx *= 0.84;
+                    node.vy *= 0.84;
+                    node.x += node.vx;
+                    node.y += node.vy;
+                }
+
+                for (let i = 0; i < links.length; i++) {
+                    const link = links[i];
+                    const el = linkEls[i];
+                    el.setAttribute('x1', String(link.source.x));
+                    el.setAttribute('y1', String(link.source.y));
+                    el.setAttribute('x2', String(link.target.x));
+                    el.setAttribute('y2', String(link.target.y));
+                }
+
+                for (let i = 0; i < nodes.length; i++) {
+                    nodeEls[i].setAttribute('transform', `translate(${nodes[i].x}, ${nodes[i].y})`);
+                }
+
+                applyViewportTransform();
+                animationFrame = requestAnimationFrame(tick);
+            }
+
+            function onNodePointerDown(event, node) {
+                event.preventDefault();
+                event.stopPropagation();
+                draggedNode = node;
+                const point = toGraphPoint(event.clientX, event.clientY);
+                node.fx = point.x;
+                node.fy = point.y;
+            }
+
+            function onPointerMove(event) {
+                if (draggedNode) {
+                    const point = toGraphPoint(event.clientX, event.clientY);
+                    draggedNode.fx = point.x;
+                    draggedNode.fy = point.y;
+                } else if (panning && panStart) {
+                    transform.x = panStart.x + (event.clientX - panStart.clientX);
+                    transform.y = panStart.y + (event.clientY - panStart.clientY);
+                    applyViewportTransform();
+                }
+            }
+
+            function onPointerUp() {
+                if (draggedNode) {
+                    draggedNode.fx = null;
+                    draggedNode.fy = null;
+                    draggedNode = null;
+                }
+                if (panning) {
+                    panning = false;
+                    panStart = null;
+                    stage.classList.remove('panning');
+                }
+            }
+
+            function onStagePointerDown(event) {
+                if (event.target !== svg) return;
+                panning = true;
+                panStart = {
+                    x: transform.x,
+                    y: transform.y,
+                    clientX: event.clientX,
+                    clientY: event.clientY
+                };
+                stage.classList.add('panning');
+            }
+
+            function onWheel(event) {
+                event.preventDefault();
+                const rect = stage.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                const mouseY = event.clientY - rect.top;
+                const graphX = (mouseX - transform.x) / transform.scale;
+                const graphY = (mouseY - transform.y) / transform.scale;
+                const zoomFactor = event.deltaY < 0 ? 1.12 : 0.9;
+                const nextScale = Math.min(zoomLimits.max, Math.max(zoomLimits.min, transform.scale * zoomFactor));
+                transform.scale = nextScale;
+                transform.x = mouseX - graphX * transform.scale;
+                transform.y = mouseY - graphY * transform.scale;
+                applyViewportTransform();
+            }
+
+            function resetView() {
+                transform.x = width / 2;
+                transform.y = height / 2;
+                transform.scale = 1;
+                applyViewportTransform();
+            }
+
+            function onResize() {
+                width = stage.clientWidth || width;
+                height = stage.clientHeight || height;
+                resetView();
+            }
+
+            nodes.forEach((node, index) => {
+                nodeEls[index].addEventListener('pointerdown', event => onNodePointerDown(event, node));
+            });
+
+            svg.addEventListener('pointerdown', onStagePointerDown);
+            stage.addEventListener('wheel', onWheel, { passive: false });
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('resize', onResize);
+
+            const resetButton = document.getElementById('graph-reset-view');
+            if (resetButton) {
+                resetButton.addEventListener('click', resetView);
+            }
+
+            applyViewportTransform();
+            tick();
+
+            return () => {
+                destroyed = true;
+                if (animationFrame) cancelAnimationFrame(animationFrame);
+                svg.removeEventListener('pointerdown', onStagePointerDown);
+                stage.removeEventListener('wheel', onWheel);
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerup', onPointerUp);
+                window.removeEventListener('resize', onResize);
+                if (resetButton) {
+                    resetButton.removeEventListener('click', resetView);
+                }
+            };
+        }
+
         function processWikiLinks(text) {
             return text.replace(/\[\[(.*?)\]\]/g, (match, p1) => {
                 const targetId = p1.toLowerCase().replace(/\s+/g, '_');
@@ -677,6 +991,7 @@ graph LR
 
         async function showContent(id, element) {
             if (!element) return;
+            cleanupActiveGraph();
 
             // Close sidebar on mobile after selection
             if (window.innerWidth <= 992 && document.getElementById('sidebar').classList.contains('active')) {
@@ -722,6 +1037,10 @@ graph LR
                     console.error("Mermaid parsing error:", e);
                 }
             }, 50);
+
+            if (id === 'graph_view') {
+                activeGraphCleanup = initLearningGraphView(document.getElementById('obsidian-graph-view'));
+            }
         }
 
         window.onload = () => {
