@@ -15,19 +15,21 @@ class LidarAvoidanceNode(Node):
             self.scan_callback,
             10)
             
-        # Publisher to Mission Manager
-        self.publisher_ = self.create_publisher(Twist, '/lidar_vel', 10)
+        # Publisher directly to motor controller for standalone running
+        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
         
         # Declare and Get Parameters
         self.declare_parameter('safe_distance', 0.5)
         self.declare_parameter('stop_distance', 0.3)
+        self.declare_parameter('forward_speed', 0.15)
         
         self.safe_distance = self.get_parameter('safe_distance').get_parameter_value().double_value
         self.stop_distance = self.get_parameter('stop_distance').get_parameter_value().double_value
+        self.forward_speed = self.get_parameter('forward_speed').get_parameter_value().double_value
         
         self.is_obstacle_ahead = False
         
-        self.get_logger().info('Lidar Avoidance Node Started with Configurable Parameters.')
+        self.get_logger().info('Lidar Avoidance Standalone Node Started.')
 
     def scan_callback(self, msg):
         # We focus on the front area (e.g., -30 to +30 degrees)
@@ -38,9 +40,6 @@ class LidarAvoidanceNode(Node):
         num_points = len(msg.ranges)
         
         # Define front sector (in indices)
-        # This depends on the LiDAR's orientation. 
-        # Usually, 0 is front, or 180 is front. Let's assume 0 is front for now.
-        # Sector: -30 to +30 degrees
         angle_min = msg.angle_min
         angle_increment = msg.angle_increment
         
@@ -77,13 +76,19 @@ class LidarAvoidanceNode(Node):
             # Slow down
             self.get_logger().info(f'Slowing down. Obstacle at {min_dist:.2f}m')
             self.is_obstacle_ahead = False
-            # We don't publish here to avoid fighting with other nodes (like lane detect)
-            # unless this node is the "Master"
+            
+            twist.linear.x = self.forward_speed / 2.0
+            twist.angular.z = 0.0
+            self.publisher_.publish(twist)
             
         else:
             if self.is_obstacle_ahead:
-                self.get_logger().info('Path clear.')
+                self.get_logger().info('Path clear. Moving forward.')
                 self.is_obstacle_ahead = False
+                
+            twist.linear.x = self.forward_speed
+            twist.angular.z = 0.0
+            self.publisher_.publish(twist)
 
 def main(args=None):
     rclpy.init(args=args)
