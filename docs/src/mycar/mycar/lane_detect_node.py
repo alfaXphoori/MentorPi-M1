@@ -15,6 +15,9 @@ class LaneDetectNode(Node):
         # Publisher for velocity commands
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
         
+        # Publisher for debug image (to view in RViz or Web)
+        self.debug_pub = self.create_publisher(Image, '/lane_debug', 10)
+        
         # Subscriber for camera feed
         self.subscription = self.create_subscription(
             Image, 
