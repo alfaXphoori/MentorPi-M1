@@ -26,16 +26,18 @@ class LaneDetectNode(Node):
             10)
         self.bridge = CvBridge()
         
-        # Yellow Line HSV Thresholds
-        # These values are tuned to detect yellow lines clearly
-        self.lower_yellow = np.array([20, 100, 100])
-        self.upper_yellow = np.array([45, 255, 255])
+        # Yellow Line LAB Thresholds
+        # LAB is more robust to lighting changes than HSV
+        # L (Lightness), A (Green-Red), B (Blue-Yellow)
+        # For Yellow: High B value is key
+        self.lower_yellow = np.array([0, 0, 145])
+        self.upper_yellow = np.array([255, 255, 255])
         
         # Parameters for Control
         self.base_speed = 0.1
         self.kp = 0.01 # Proportional gain
         
-        self.get_logger().info('Yellow Lane Detection Node Started (Headless Mode).')
+        self.get_logger().info('Yellow Lane Detection Node Started (LAB Color Mode).')
 
     def image_callback(self, msg):
         try:
@@ -47,12 +49,12 @@ class LaneDetectNode(Node):
             roi_h_start = int(h * 0.6)
             roi = cv_image[roi_h_start:h, 0:w]
             
-            # 2. Pre-processing: Blur and convert to HSV
+            # 2. Pre-processing: Blur and convert to LAB
             blurred = cv2.GaussianBlur(roi, (5, 5), 0)
-            hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+            lab_img = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB)
             
-            # 3. Detect Yellow Color
-            mask = cv2.inRange(hsv, self.lower_yellow, self.upper_yellow)
+            # 3. Detect Yellow Color in LAB space
+            mask = cv2.inRange(lab_img, self.lower_yellow, self.upper_yellow)
             
             # Optional: Morphological operations to clean up the mask
             kernel = np.ones((5, 5), np.uint8)
@@ -63,7 +65,6 @@ class LaneDetectNode(Node):
             M = cv2.moments(mask)
             
             # Create a debug image by combining ROI and the mask
-            # We convert the 1-channel mask to 3-channels to overlay/concatenate
             mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
             
             if M['m00'] > 0:
@@ -88,14 +89,13 @@ class LaneDetectNode(Node):
                 cv2.putText(roi, f"Error: {error}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
             else:
                 cv2.putText(roi, "LINE LOST", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-                # Stop or slow down if line is lost
+                # Stop if line is lost
                 self.publisher_.publish(Twist())
 
             # Tiled Visualization: Left (Original ROI), Right (Detection Mask)
             combined_view = np.hstack((roi, mask_rgb))
             
-            # Publish Debug Image to ROS topic (for RViz or Web Server)
-            # This avoids using cv2.imshow which fails in headless environments
+            # Publish Debug Image to ROS topic
             debug_msg = self.bridge.cv2_to_imgmsg(combined_view, "bgr8")
             self.debug_pub.publish(debug_msg)
             
