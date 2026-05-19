@@ -102,13 +102,19 @@ class MissionManager(Node):
             # IMU Assistance for turns
             if self.imu_received and abs(self.yolo_cmd.angular.z) > 0.1:
                 error = self.normalize_angle(self.target_yaw - self.current_yaw)
-                if abs(error) < 0.05: # Target reached
+                if abs(error) < 0.08: # Target reached (wider threshold)
                     final_cmd.angular.z = 0.0
                     self.yolo_active_until = 0.0 # Exit maneuver
                     self.get_logger().info('YOLO Maneuver: IMU Target Reached.')
                 else:
                     # P-Control for turning
                     final_cmd.angular.z = 0.8 * error
+                    
+                    # Ensure minimum speed to overcome friction
+                    min_turn = 0.25
+                    if final_cmd.angular.z > 0 and final_cmd.angular.z < min_turn: final_cmd.angular.z = min_turn
+                    if final_cmd.angular.z < 0 and final_cmd.angular.z > -min_turn: final_cmd.angular.z = -min_turn
+                    
                     # Clamp to max speed from original command
                     max_speed = abs(self.yolo_cmd.angular.z)
                     final_cmd.angular.z = max(min(final_cmd.angular.z, max_speed), -max_speed)

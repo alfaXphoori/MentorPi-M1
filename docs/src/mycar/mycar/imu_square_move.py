@@ -80,16 +80,29 @@ class ImuSquareMove(Node):
 
     def turn_to_yaw(self, target_yaw):
         msg = Twist()
+        start_turn_time = time.time()
+        timeout = 5.0 # Stop trying after 5 seconds
+        
         while rclpy.ok():
             rclpy.spin_once(self, timeout_sec=0.01)
             error = self.normalize_angle(target_yaw - self.current_yaw)
             
-            if abs(error) < 0.03: # Accuracy threshold (radians, ~1.7 degrees)
+            # 1. Check if we reached the target or timed out
+            if abs(error) < 0.08: # Wider threshold (~4.5 degrees)
+                break
+            if time.time() - start_turn_time > timeout:
+                self.get_logger().warn('Turn timeout reached!')
                 break
                 
-            # Proportional control for turning speed
-            angular_vel = 0.7 * error
-            # Clamp to max turn speed
+            # 2. Proportional control
+            angular_vel = 0.8 * error
+            
+            # 3. Ensure minimum velocity to overcome friction
+            min_vel = 0.25 
+            if angular_vel > 0 and angular_vel < min_vel: angular_vel = min_vel
+            if angular_vel < 0 and angular_vel > -min_vel: angular_vel = -min_vel
+            
+            # 4. Clamp to max turn speed
             if angular_vel > self.turn_speed: angular_vel = self.turn_speed
             if angular_vel < -self.turn_speed: angular_vel = -self.turn_speed
             
