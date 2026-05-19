@@ -1,12 +1,12 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
-from geometry_msgs.msg import Twist
+from std_msgs.msg import Float32, String
 import numpy as np
 
-class LidarAvoidanceNode(Node):
+class LidarDetectNode(Node):
     def __init__(self):
-        super().__init__('lidar_avoidance_node')
+        super().__init__('lidar_detect_node')
         
         # Subscriber to LiDAR data
         self.subscription = self.create_subscription(
@@ -15,84 +15,71 @@ class LidarAvoidanceNode(Node):
             self.scan_callback,
             10)
             
-        # Publisher directly to motor controller for standalone running
-        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+        # Publishers for each direction (Consistent with avoidance logic)
+        self.front_dist_pub = self.create_publisher(Float32, '/lidar_dist_front', 10)
+        self.left_dist_pub = self.create_publisher(Float32, '/lidar_dist_left', 10)
+        self.right_dist_pub = self.create_publisher(Float32, '/lidar_dist_right', 10)
         
-        # Declare and Get Parameters
-        self.declare_parameter('safe_distance', 0.5)
+        # Status Publisher
+        self.status_pub = self.create_publisher(String, '/lidar_status', 10)
+        
+        # Parameters
         self.declare_parameter('stop_distance', 0.3)
-        self.declare_parameter('forward_speed', 0.15)
+        self.stop_dist = self.get_parameter('stop_distance').value
         
-        self.safe_distance = self.get_parameter('safe_distance').get_parameter_value().double_value
-        self.stop_distance = self.get_parameter('stop_distance').get_parameter_value().double_value
-        self.forward_speed = self.get_parameter('forward_speed').get_parameter_value().double_value
-        
-        self.is_obstacle_ahead = False
-        
-        self.get_logger().info('Lidar Avoidance Standalone Node Started.')
+        self.get_logger().info('Lidar Detection Node Started. Monitoring Front, Left, and Right sectors.')
 
     def scan_callback(self, msg):
-        # We focus on the front area (e.g., -30 to +30 degrees)
-        # Assuming 0 degrees is straight ahead
-        # LaserScan.ranges is an array. We need to find indices for the front.
-        
-        # Get the number of points
         num_points = len(msg.ranges)
-        
-        # Define front sector (in indices)
         angle_min = msg.angle_min
         angle_increment = msg.angle_increment
         
-        # Calculate indices for -30 to 30 degrees
-        front_indices = []
+        # Initialize sector buffers
+        front_sector = []
+        left_sector = []
+        right_sector = []
+        
         for i in range(num_points):
             angle = angle_min + i * angle_increment
-            if -0.5 < angle < 0.5: # ~ -28 to +28 degrees
-                front_indices.append(i)
+            dist = msg.ranges[i]
+            
+            if msg.range_min < dist < msg.range_max:
+                # Center (Front) Sector: -15 to +15 degrees
+                if -0.26 < angle < 0.26:
+                    front_sector.append(dist)
+                # Left Sector: +15 to +45 degrees
+                elif 0.26 <= angle < 0.8:
+                    left_sector.append(dist)
+                # Right Sector: -45 to -15 degrees
+                elif -0.8 < angle <= -0.26:
+                    right_sector.append(dist)
         
-        if not front_indices:
-            return
-
-        # Get distances in the front sector
-        front_ranges = [msg.ranges[i] for i in front_indices if msg.range_min < msg.ranges[i] < msg.range_max]
+        # Get minimum distances (default to max range if empty)
+        min_front = min(front_sector) if front_sector else float(msg.range_max)
+        min_left = min(left_sector) if left_sector else float(msg.range_max)
+        min_right = min(right_sector) if right_sector else float(msg.range_max)
         
-        if not front_ranges:
-            return
-            
-        min_dist = min(front_ranges)
+        # Publish distances
+        self.front_dist_pub.publish(Float32(data=float(min_front)))
+        self.left_dist_pub.publish(Float32(data=float(min_left)))
+        self.right_dist_pub.publish(Float32(data=float(min_right)))
         
-        twist = Twist()
+        # Determine and Publish Status
+        status_msg = String()
+        overall_min = min(min_front, min_left, min_right)
         
-        if min_dist < self.stop_distance:
-            if not self.is_obstacle_ahead:
-                self.get_logger().warn(f'EMERGENCY STOP! Obstacle at {min_dist:.2f}m')
-                self.is_obstacle_ahead = True
-            
-            twist.linear.x = 0.0
-            twist.angular.z = 0.0
-            self.publisher_.publish(twist)
-            
-        elif min_dist < self.safe_distance:
-            # Slow down
-            self.get_logger().info(f'Slowing down. Obstacle at {min_dist:.2f}m')
-            self.is_obstacle_ahead = False
-            
-            twist.linear.x = self.forward_speed / 2.0
-            twist.angular.z = 0.0
-            self.publisher_.publish(twist)
-            
+        if overall_min < self.stop_dist:
+            status_msg.data = "OBSTACLE_NEAR"
+        elif overall_min < self.stop_dist + 0.3:
+            status_msg.data = "OBSTACLE_DETECTED"
         else:
-            if self.is_obstacle_ahead:
-                self.get_logger().info('Path clear. Moving forward.')
-                self.is_obstacle_ahead = False
-                
-            twist.linear.x = self.forward_speed
-            twist.angular.z = 0.0
-            self.publisher_.publish(twist)
+            status_msg.data = "CLEAR"
+            
+        self.status_pub.publish(status_msg)
 
 def main(args=None):
     rclpy.init(args=args)
-    node = LidarAvoidanceNode()
+    node = LidarDetectNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
