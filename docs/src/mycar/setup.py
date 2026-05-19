@@ -32,6 +32,7 @@ setup(
             'lane_keep_node = mycar.lane_keep_node:main',
             'mission_manager = mycar.mission_manager:main',
             'yolo_logic_node = mycar.yolo_logic_node:main',
+            'lidar_detect_node = mycar.lidar_detect_node:main',
             'lidar_avoidance_node = mycar.lidar_avoidance_node:main',
         ],
     },

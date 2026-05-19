@@ -15,80 +15,68 @@ class LidarAvoidanceNode(Node):
             self.scan_callback,
             10)
             
-        # Publisher directly to motor controller for standalone running
-        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+        # Publisher for avoidance velocity (to be coordinated by Mission Manager)
+        self.publisher_ = self.create_publisher(Twist, '/avoid_vel', 10)
         
-        # Declare and Get Parameters
-        self.declare_parameter('safe_distance', 0.5)
+        # Parameters
+        self.declare_parameter('avoid_distance', 0.6)
         self.declare_parameter('stop_distance', 0.3)
-        self.declare_parameter('forward_speed', 0.15)
+        self.declare_parameter('max_speed', 0.15)
         
-        self.safe_distance = self.get_parameter('safe_distance').get_parameter_value().double_value
-        self.stop_distance = self.get_parameter('stop_distance').get_parameter_value().double_value
-        self.forward_speed = self.get_parameter('forward_speed').get_parameter_value().double_value
+        self.avoid_dist = self.get_parameter('avoid_distance').value
+        self.stop_dist = self.get_parameter('stop_distance').value
+        self.max_speed = self.get_parameter('max_speed').value
         
-        self.is_obstacle_ahead = False
-        
-        self.get_logger().info('Lidar Avoidance Standalone Node Started.')
+        self.get_logger().info('Lidar Avoidance (Active Dodge) Node Started.')
 
     def scan_callback(self, msg):
-        # We focus on the front area (e.g., -30 to +30 degrees)
-        # Assuming 0 degrees is straight ahead
-        # LaserScan.ranges is an array. We need to find indices for the front.
-        
-        # Get the number of points
         num_points = len(msg.ranges)
-        
-        # Define front sector (in indices)
         angle_min = msg.angle_min
         angle_increment = msg.angle_increment
         
-        # Calculate indices for -30 to 30 degrees
-        front_indices = []
+        # Analyze sectors: Front-Left and Front-Right
+        left_sector = []
+        right_sector = []
+        
         for i in range(num_points):
             angle = angle_min + i * angle_increment
-            if -0.5 < angle < 0.5: # ~ -28 to +28 degrees
-                front_indices.append(i)
-        
-        if not front_indices:
-            return
-
-        # Get distances in the front sector
-        front_ranges = [msg.ranges[i] for i in front_indices if msg.range_min < msg.ranges[i] < msg.range_max]
-        
-        if not front_ranges:
-            return
-            
-        min_dist = min(front_ranges)
+            dist = msg.ranges[i]
+            if msg.range_min < dist < msg.range_max:
+                if 0 <= angle < 0.6:   # 0 to 35 degrees (Left)
+                    left_sector.append(dist)
+                elif -0.6 < angle < 0: # -35 to 0 degrees (Right)
+                    right_sector.append(dist)
         
         twist = Twist()
         
-        if min_dist < self.stop_distance:
-            if not self.is_obstacle_ahead:
-                self.get_logger().warn(f'EMERGENCY STOP! Obstacle at {min_dist:.2f}m')
-                self.is_obstacle_ahead = True
-            
+        min_left = min(left_sector) if left_sector else 10.0
+        min_right = min(right_sector) if right_sector else 10.0
+        min_dist = min(min_left, min_right)
+        
+        if min_dist < self.stop_dist:
+            # Too close to avoid, just stop
             twist.linear.x = 0.0
             twist.angular.z = 0.0
-            self.publisher_.publish(twist)
+            self.get_logger().warn('Obstacle too close! Emergency Stop.')
+        elif min_dist < self.avoid_dist:
+            # Active Avoidance Logic
+            twist.linear.x = self.max_speed * 0.7 # Slow down while dodging
             
-        elif min_dist < self.safe_distance:
-            # Slow down
-            self.get_logger().info(f'Slowing down. Obstacle at {min_dist:.2f}m')
-            self.is_obstacle_ahead = False
-            
-            twist.linear.x = self.forward_speed / 2.0
-            twist.angular.z = 0.0
-            self.publisher_.publish(twist)
-            
+            # If obstacle is more on the left, steer right (negative Z)
+            # If obstacle is more on the right, steer left (positive Z)
+            if min_left < min_right:
+                self.get_logger().info(f'Dodge Right! (Dist: {min_left:.2f}m)')
+                twist.angular.z = -0.5 # Steer Right
+            else:
+                self.get_logger().info(f'Dodge Left! (Dist: {min_right:.2f}m)')
+                twist.angular.z = 0.5 # Steer Left
         else:
-            if self.is_obstacle_ahead:
-                self.get_logger().info('Path clear. Moving forward.')
-                self.is_obstacle_ahead = False
-                
-            twist.linear.x = self.forward_speed
+            # Path clear
+            # Note: We publish zero to /avoid_vel so Mission Manager knows we don't need to dodge
+            twist.linear.x = 0.0
             twist.angular.z = 0.0
-            self.publisher_.publish(twist)
+
+        self.publisher_.publish(twist)
 
 def main(args=None):
     rclpy.init(args=args)
