@@ -8,19 +8,27 @@ class CameraTiltNode(Node):
         super().__init__('camera_tilt_node')
         self.publisher_ = self.create_publisher(ServosPosition, '/ros_robot_controller/bus_servo/set_position', 10)
         
-        # Parameters
-        self.servo_id = 2  # Typically ID 2 is for Tilt (Up/Down)
-        self.current_pos = 500 # Center position (0-1000 range)
+        # Declare Parameters
+        self.declare_parameter('servo_id', 2)
+        self.declare_parameter('default_pos', 500)
+        self.declare_parameter('min_pos', 300)
+        self.declare_parameter('max_pos', 700)
+
+        # Get Parameters
+        self.servo_id = self.get_parameter('servo_id').get_parameter_value().integer_value
+        self.current_pos = self.get_parameter('default_pos').get_parameter_value().integer_value
+        self.min_pos = self.get_parameter('min_pos').get_parameter_value().integer_value
+        self.max_pos = self.get_parameter('max_pos').get_parameter_value().integer_value
         
-        self.get_logger().info('Camera Tilt Node Started. Sweeping Up/Down...')
+        self.get_logger().info(f'Camera Tilt Node Started (ID: {self.servo_id}). Sweeping...')
         self.timer = self.create_timer(2.0, self.timer_callback)
         self.direction = 1
 
     def timer_callback(self):
-        # Sweep logic: Move between 300 (Up) and 700 (Down)
-        if self.current_pos >= 700:
+        # Sweep logic: Move between min and max positions
+        if self.current_pos >= self.max_pos:
             self.direction = -1
-        elif self.current_pos <= 300:
+        elif self.current_pos <= self.min_pos:
             self.direction = 1
             
         self.current_pos += self.direction * 100
