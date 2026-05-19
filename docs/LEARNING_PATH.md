@@ -49,16 +49,29 @@ Learn the basics of publishing to the `/cmd_vel` topic from a Python script to m
         ```bash
         ros2 pkg create --build-type ament_python mycar
         ```
-    3. Build the workspace:
+    3. Create the node file inside the package:
+        ```bash
+        cd ~/ros2_ws/src/mycar/mycar
+        touch drive_node.py
+        ```
+    4. Make the node executable:
+        ```bash
+        chmod +x drive_node.py
+        ```
+    5. Update `setup.py` so ROS 2 can run the node from the command line:
+        ```python
+        entry_points={
+            'console_scripts': [
+                'drive_node = mycar.drive_node:main',
+            ],
+        },
+        ```
+    6. Build only the `mycar` package:
         ```bash
         cd ~/ros2_ws
         colcon build --packages-select mycar
         ```
-    4. Source the workspace:
-        ```bash
-        source install/setup.bash
-        ```
-*   **Next Step:** Add `drive_node.py` inside the package and use it as your first autonomous publisher for `/cmd_vel`.
+*   **Next Step:** Write the `drive_node.py` code and use it as your first autonomous publisher for `/cmd_vel`.
 *   **Key Concept:** `geometry_msgs/Twist` message structure.
 *   **Logic:** Continuous publication of linear and angular velocity.
 
