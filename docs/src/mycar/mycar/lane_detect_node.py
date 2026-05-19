@@ -28,6 +28,7 @@ class LaneDetectNode(Node):
         self.declare_parameter('base_speed', 0.15)
         self.declare_parameter('kp', 0.005)
         self.declare_parameter('show_debug', True)
+        self.declare_parameter('target_x_ratio', 0.8) # 0.5=Center, 0.2=Keep line on Left, 0.8=Keep line on Right
 
         self.lower_yellow = np.array(self.get_parameter('lower_yellow').value, dtype=np.uint8)
         self.upper_yellow = np.array(self.get_parameter('upper_yellow').value, dtype=np.uint8)
@@ -37,6 +38,7 @@ class LaneDetectNode(Node):
         self.base_speed = self.get_parameter('base_speed').value
         self.kp = self.get_parameter('kp').value
         self.show_debug = self.get_parameter('show_debug').value
+        self.target_x_ratio = self.get_parameter('target_x_ratio').value
 
         self.get_logger().info(f'Lane Detection Started. Mode: {"White" if self.use_white else "Yellow"}')
 
@@ -73,14 +75,19 @@ class LaneDetectNode(Node):
             
             if M['m00'] > 500: 
                 cx = int(M['m10']/M['m00'])
-                error = cx - w/2
+                target_x = int(w * self.target_x_ratio)
+                error = cx - target_x
                 
                 twist.linear.x = self.base_speed
                 twist.angular.z = -float(error) * self.kp
                 
                 if self.show_debug:
+                    # Draw actual line center (red dot)
                     cv2.circle(roi, (cx, int((roi_bottom-roi_top)/2)), 10, (0, 0, 255), -1)
-                    cv2.line(roi, (int(w/2), 0), (int(w/2), roi_bottom-roi_top), (255, 0, 0), 2)
+                    # Draw our target tracking line (green line)
+                    cv2.line(roi, (target_x, 0), (target_x, roi_bottom-roi_top), (0, 255, 0), 2)
+                    # Draw screen center for reference (thin blue line)
+                    cv2.line(roi, (int(w/2), 0), (int(w/2), roi_bottom-roi_top), (255, 0, 0), 1)
             else:
                 # Line lost logic: stop or slow turn to find it
                 twist.linear.x = 0.0
