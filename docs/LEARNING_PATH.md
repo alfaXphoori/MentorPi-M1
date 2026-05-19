@@ -8,16 +8,24 @@ Welcome to the MentorPi M1 robot FSD engineering track. This specialized learnin
 **Objective:** Establishing communication with the hardware and mastering timed and sensor-based movement sequences.
 
 ### 1.1 Manual Control (Teleoperation)
-Before writing code, verify the hardware communication by driving the robot manually using your keyboard.
-*   **Action:** 
-    1. Launch the base system in Terminal 1: `ros2 launch bringup bringup.launch.py`
-    2. Run the teleop node in Terminal 2: `ros2 run teleop_twist_keyboard teleop_twist_keyboard`
+Before writing autonomous code, first confirm that the robot, ROS 2 communication, and motor driver are working correctly by controlling the robot manually from the keyboard.
+
+*   **Goal:** Prove that keyboard input can be translated into velocity commands and that the robot responds safely and predictably.
+*   **Steps:**
+    1. Start the robot base in Terminal 1: `ros2 launch bringup bringup.launch.py`
+    2. Start keyboard teleoperation in Terminal 2: `ros2 run teleop_twist_keyboard teleop_twist_keyboard`
+    3. (Optional) Monitor outgoing velocity commands in Terminal 3: `ros2 topic echo /cmd_vel`
 *   **Keyboard Commands:**
-    *   **`i` / `,`**: Move Forward / Backward (increases/decreases `linear.x`)
-    *   **`j` / `l`**: Turn Left / Turn Right (increases/decreases `angular.z`)
-    *   **`k`**: Force Stop (sets all velocities to 0.0)
-    *   **`q` / `z`**: Increase / Decrease max speed by 10%
-*   **Key Concept:** This tool translates your keystrokes into standard `geometry_msgs/msg/Twist` messages and publishes them to the `/cmd_vel` topic, which the hardware driver then converts into motor speeds.
+    *   **`i` / `,`**: Move forward / backward by changing `linear.x`
+    *   **`j` / `l`**: Turn left / right by changing `angular.z`
+    *   **`k`**: Emergency stop by setting all velocities to `0.0`
+    *   **`q` / `z`**: Increase / decrease the maximum speed by 10%
+*   **What to Observe:**
+    *   The robot should move immediately when a command key is pressed.
+    *   The `/cmd_vel` topic should display `geometry_msgs/msg/Twist` messages with changing `linear.x` and `angular.z` values.
+    *   Pressing `k` should stop the robot completely.
+*   **Expected Learning Outcome:** You will understand that teleoperation is simply a publisher that converts keyboard input into `Twist` messages on `/cmd_vel`, which are then consumed by the robot's motion controller.
+*   **Why This Matters:** Every later movement node in this learning path will also publish to `/cmd_vel`. If teleoperation works, your software stack, topic routing, and low-level motion interface are already connected correctly.
 
 ### 1.2 drive_node.py (The "Hello World" of Movement)
 Learn the basics of publishing to the `/cmd_vel` topic from a Python script to make the robot move autonomously.
