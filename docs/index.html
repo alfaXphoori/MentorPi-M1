@@ -461,6 +461,7 @@ This page is the visual roadmap for the recommended learning order. Follow the g
 ```mermaid
 graph TD
     Start["Start Here"]
+    Repo["GitHub Source Files<br/>docs/src/mycar/mycar"]
 
     P1["Phase 1<br/>Basic Motion Control"]
     P11["1.1 Manual Control"]
@@ -485,6 +486,7 @@ graph TD
     FSD["fsd_master.launch.py"]
 
     Start --> P1
+    Start -. source files .-> Repo
     P1 --> P11 --> P12 --> P13 --> P14
     P14 --> P2
     P2 --> P21 --> P22 --> P23
@@ -494,7 +496,10 @@ graph TD
     P4 --> P41
     P41 --> P5 --> FSD
 
+    click Repo href "https://github.com/alfaXphoori/MentorPi-M1/tree/main/docs/src/mycar/mycar" "Open source files on GitHub" _blank
+
     style Start fill:#6c429c,stroke:#333,stroke-width:2px,color:#fff
+    style Repo fill:#24292f,stroke:#58a6ff,stroke-width:2px,color:#fff
     style P1 fill:#2f74c0,stroke:#333,stroke-width:2px,color:#fff
     style P2 fill:#288b45,stroke:#333,stroke-width:2px,color:#fff
     style P3 fill:#c94d2c,stroke:#333,stroke-width:2px,color:#fff
@@ -506,6 +511,7 @@ graph TD
 ## How to Use This Page
 
 - Start at **Phase 1** and move left-to-right through the skills in order.
+- Click **GitHub Source Files** in the graph to open the `docs/src/mycar/mycar` folder on GitHub.
 - Open [[LEARNING_PATH]] for the exact commands, file paths, `setup.py` entries, and run instructions.
 - Use the **System Overview** page when you want the big-picture architecture instead of the step-by-step learning order.
     </script>
@@ -582,7 +588,14 @@ This page shows the **Learning Path** as a note-style relationship graph, simila
         function getMermaidTheme() {
             return document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
         }
-        mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme() });
+        function initializeMermaid() {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: getMermaidTheme(),
+                securityLevel: 'loose'
+            });
+        }
+        initializeMermaid();
 
         function toggleTheme() {
             const body = document.body;
@@ -590,7 +603,7 @@ This page shows the **Learning Path** as a note-style relationship graph, simila
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             body.setAttribute('data-theme', newTheme);
             localStorage.setItem('obsidian-theme', newTheme);
-            mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme() });
+            initializeMermaid();
             const activeLink = document.querySelector('.nav-link.active');
             if (activeLink) {
                 const targetId = activeLink.id.replace('nav-', '');
@@ -601,7 +614,7 @@ This page shows the **Learning Path** as a note-style relationship graph, simila
         const savedTheme = localStorage.getItem('obsidian-theme');
         if (savedTheme) {
             document.body.setAttribute('data-theme', savedTheme);
-            mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme() });
+            initializeMermaid();
         }
 
         const learningGraphData = {
