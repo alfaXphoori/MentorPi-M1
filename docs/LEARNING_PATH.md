@@ -10,6 +10,17 @@ Welcome to the MentorPi M1 robot FSD engineering track. This specialized learnin
 ### 1.1 Manual Control (Teleoperation)
 Before writing autonomous code, first confirm that the robot, ROS 2 communication, and motor driver are working correctly by controlling the robot manually from the keyboard.
 
+**Required Node Graph:**
+```mermaid
+graph TD
+    Keyboard["Keyboard Input"] --> Teleop["teleop_twist_keyboard"]
+    DirectPub["ros2 topic pub /cmd_vel"] --> CmdVel["/cmd_vel"]
+    Teleop --> CmdVel
+    CmdEcho["ros2 topic echo /cmd_vel"] -. monitor .-> CmdVel
+    Bringup["bringup.launch.py"] --> Base["Robot Base Driver"]
+    CmdVel --> Base
+```
+
 *   **Goal:** Prove that keyboard input can be translated into velocity commands and that the robot responds safely and predictably.
 *   **Steps:**
     1. Start the robot base in Terminal 1: `ros2 launch bringup bringup.launch.py`
@@ -40,6 +51,15 @@ Before writing autonomous code, first confirm that the robot, ROS 2 communicatio
 
 ### 1.2 drive_node.py (The "Hello World" of Movement)
 Learn the basics of publishing to the `/cmd_vel` topic from a Python script to make the robot move autonomously. Start by creating your own ROS 2 Python package so the node lives in a clean workspace structure.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Drive["drive_node.py"] --> CmdVel["/cmd_vel"]
+    Bringup["bringup.launch.py"] --> Base["Robot Base Driver"]
+    CmdVel --> Base
+```
+
 *   **Setup Steps:**
     1. Go to your ROS 2 workspace source directory:
         ```bash
@@ -77,6 +97,15 @@ Learn the basics of publishing to the `/cmd_vel` topic from a Python script to m
 
 ### 1.3 square_move.py (Timed Sequences)
 Build on basic movement by teaching the robot to execute a square using timed forward and turning commands.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Square["square_move.py"] --> CmdVel["/cmd_vel"]
+    Bringup["bringup.launch.py"] --> Base["Robot Base Driver"]
+    CmdVel --> Base
+```
+
 *   **File Locations to Copy Into:**
     *   **Node file:** `~/ros2_ws/src/mycar/mycar/square_move.py`
     *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
@@ -96,6 +125,18 @@ Build on basic movement by teaching the robot to execute a square using timed fo
 
 ### 1.4 imu_square_move.py (Precision with Sensors)
 Move from timed guesses to sensor-based precision by using IMU yaw feedback to maintain heading and complete cleaner 90-degree turns.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Bringup["bringup.launch.py"] --> Base["Robot Base Driver"]
+    Bringup --> ImuPub["IMU Driver"]
+    ImuPub --> ImuTopic["/imu"]
+    ImuTopic --> ImuSquare["imu_square_move.py"]
+    ImuSquare --> CmdVel["/cmd_vel"]
+    CmdVel --> Base
+```
+
 *   **File Locations to Copy Into:**
     *   **Node file:** `~/ros2_ws/src/mycar/mycar/imu_square_move.py`
     *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
@@ -120,6 +161,19 @@ Move from timed guesses to sensor-based precision by using IMU yaw feedback to m
 
 ### 2.1 color_control.py (Reaction to Color)
 The first step in vision: making movement decisions based on detected colors from the camera.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Bringup["bringup.launch.py"] --> Camera["ASCamera Driver"]
+    Bringup --> Base["Robot Base Driver"]
+    Camera --> ImageTopic["/ascamera/camera_publisher/rgb0/image"]
+    ImageTopic --> Color["color_control.py"]
+    Color --> CmdVel["/cmd_vel"]
+    CmdVel --> Base
+    Viewer["rqt_image_view"] -. inspect .-> ImageTopic
+```
+
 *   **File Locations to Copy Into:**
     *   **Node file:** `~/ros2_ws/src/mycar/mycar/color_control.py`
     *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
@@ -144,6 +198,20 @@ The first step in vision: making movement decisions based on detected colors fro
 
 ### 2.2 lane_detect_node.py (Basic Lane Following)
 Detect and follow a yellow lane marking using a single Region of Interest at the lower part of the image.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Bringup["bringup.launch.py"] --> Camera["ASCamera Driver"]
+    Bringup --> Base["Robot Base Driver"]
+    Camera --> ImageTopic["/ascamera/camera_publisher/rgb0/image"]
+    ImageTopic --> LaneDetect["lane_detect_node.py"]
+    LaneDetect --> CmdVel["/cmd_vel"]
+    CmdVel --> Base
+    LaneDetect --> LaneDebug["/lane_debug"]
+    Viewer["rqt_image_view"] -. inspect .-> LaneDebug
+```
+
 *   **File Locations to Copy Into:**
     *   **Node file:** `~/ros2_ws/src/mycar/mycar/lane_detect_node.py`
     *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
@@ -168,6 +236,18 @@ Detect and follow a yellow lane marking using a single Region of Interest at the
 
 ### 2.3 lane_keep_node.py (Advanced Multi-ROI Tracking)
 Upgrade lane following by using three ROIs so the robot can react to both the current lane position and the upcoming curve.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Bringup["bringup.launch.py"] --> Camera["ASCamera Driver"]
+    Camera --> ImageTopic["/ascamera/camera_publisher/rgb0/image"]
+    ImageTopic --> LaneKeep["lane_keep_node.py"]
+    LaneKeep --> LaneVel["/lane_vel"]
+    LaneKeep --> LaneKeepDebug["/lane_keep_debug"]
+    Viewer["rqt_image_view"] -. inspect .-> LaneKeepDebug
+```
+
 *   **File Locations to Copy Into:**
     *   **Node file:** `~/ros2_ws/src/mycar/mycar/lane_keep_node.py`
     *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
@@ -198,6 +278,18 @@ Upgrade lane following by using three ROIs so the robot can react to both the cu
 
 ### 3.1 lidar_detect_node.py (Distance Monitoring)
 Learn to process 2D LiDAR data to measure the nearest obstacle in front of the robot.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Bringup["bringup.launch.py"] --> Lidar["LiDAR Driver"]
+    Lidar --> Scan["/scan_raw"]
+    Scan --> LidarDetect["lidar_detect_node.py"]
+    LidarDetect --> FrontDist["/lidar_dist_front"]
+    LidarDetect --> LidarStatus["/lidar_status"]
+    RViz["rviz2"] -. inspect .-> Scan
+```
+
 *   **File Locations to Copy Into:**
     *   **Node file:** `~/ros2_ws/src/mycar/mycar/lidar_detect_node.py`
     *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
@@ -223,6 +315,20 @@ Learn to process 2D LiDAR data to measure the nearest obstacle in front of the r
 
 ### 3.2 lidar_avoidance_node.py (Active Dodging)
 Move beyond obstacle detection by steering away from nearby objects automatically.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Bringup["bringup.launch.py"] --> Lidar["LiDAR Driver"]
+    Bringup --> Base["Robot Base Driver"]
+    Lidar --> Scan["/scan_raw"]
+    Scan --> Avoid["lidar_avoidance_node.py"]
+    Avoid --> CmdVel["/cmd_vel"]
+    CmdVel --> Base
+    Avoid --> AvoidStatus["/avoid_status"]
+    RViz["rviz2"] -. inspect .-> Scan
+```
+
 *   **File Locations to Copy Into:**
     *   **Node file:** `~/ros2_ws/src/mycar/mycar/lidar_avoidance_node.py`
     *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
@@ -248,6 +354,20 @@ Move beyond obstacle detection by steering away from nearby objects automaticall
 
 ### 3.3 yolo_logic_node.py (Traffic Sign Navigation)
 Integrate deep learning detections so the robot can change behavior when it sees navigation signs.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Bringup["bringup.launch.py"] --> Camera["ASCamera Driver"]
+    Camera --> ImageTopic["/ascamera/camera_publisher/rgb0/image"]
+    ImageTopic --> YoloDetect["yolov5_ros2 detector"]
+    YoloDetect --> DetectTopic["/yolov5_ros2/object_detect"]
+    DetectTopic --> YoloLogic["yolo_logic_node.py"]
+    YoloLogic --> YoloVel["/yolo_vel"]
+    YoloDetect --> ResultImg["/yolov5_ros2/result_img"]
+    Viewer["rqt_image_view"] -. inspect .-> ResultImg
+```
+
 *   **File Locations to Copy Into:**
     *   **Node file:** `~/ros2_ws/src/mycar/mycar/yolo_logic_node.py`
     *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
@@ -278,6 +398,19 @@ Integrate deep learning detections so the robot can change behavior when it sees
 
 ### 4.1 hand_control.py (Gesture Control)
 Use MediaPipe hand tracking so the robot responds to finger-count gestures from the camera.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Bringup["bringup.launch.py"] --> Camera["ASCamera Driver"]
+    Bringup --> Base["Robot Base Driver"]
+    Camera --> ImageTopic["/ascamera/camera_publisher/rgb0/image"]
+    ImageTopic --> Hand["hand_control.py"]
+    Hand --> CmdVel["/cmd_vel"]
+    CmdVel --> Base
+    Viewer["rqt_image_view"] -. inspect .-> ImageTopic
+```
+
 *   **File Locations to Copy Into:**
     *   **Node file:** `~/ros2_ws/src/mycar/mycar/hand_control.py`
     *   **Package configuration:** `~/ros2_ws/src/mycar/setup.py`
@@ -306,6 +439,36 @@ Use MediaPipe hand tracking so the robot responds to finger-count gestures from 
 **Objective:** Orchestrate all nodes into a unified autonomous stack.
 
 The ultimate goal is to launch the complete FSD stack, where lane following, LiDAR safety, and YOLO-based sign logic are combined under one mission manager.
+
+**Required Node Graph:**
+```mermaid
+graph TD
+    Bringup["bringup.launch.py"] --> Camera["ASCamera Driver"]
+    Bringup --> Lidar["LiDAR Driver"]
+    Bringup --> Base["Robot Base Driver"]
+
+    Camera --> ImageTopic["/ascamera/camera_publisher/rgb0/image"]
+    ImageTopic --> LaneKeep["fsd_lane_keep.py"]
+    ImageTopic --> YoloDetect["yolov5_ros2 detector"]
+
+    Lidar --> Scan["/scan_raw"]
+    Scan --> LidarSafety["fsd_lidar_safety.py"]
+
+    LaneKeep --> LaneVel["/fsd/lane_vel"]
+    YoloDetect --> DetectTopic["/yolov5_ros2/object_detect"]
+    DetectTopic --> YoloLogic["yolo_logic_node.py"]
+    YoloLogic --> YoloVel["/yolo_vel"]
+    LidarSafety --> AvoidVel["/fsd/avoid_vel"]
+    LidarSafety --> SafetyStatus["/fsd/safety_status"]
+
+    LaneVel --> Mission["fsd_mission_manager.py"]
+    YoloVel --> Mission
+    AvoidVel --> Mission
+    SafetyStatus --> Mission
+    Mission --> CmdVel["/cmd_vel"]
+    CmdVel --> Base
+```
+
 *   **Main Launch File:** `~/ros2_ws/src/mycar/launch/fsd_master.launch.py`
 *   **Core Files in This Phase:**
     *   `~/ros2_ws/src/mycar/mycar/fsd_lane_keep.py`
