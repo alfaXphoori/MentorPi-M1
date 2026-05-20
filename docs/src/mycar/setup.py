@@ -30,6 +30,7 @@ setup(
             'color_control_node = mycar.color_control:main',
             'lane_detect_node = mycar.lane_detect_node:main',
             'lane_keep_node = mycar.lane_keep_node:main',
+            'lane_keep_full = mycar.lane_keep_full:main',
             'mission_manager = mycar.mission_manager:main',
             'yolo_logic_node = mycar.yolo_logic_node:main',
             'lidar_detect_node = mycar.lidar_detect_node:main',
