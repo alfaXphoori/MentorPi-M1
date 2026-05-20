@@ -25,17 +25,19 @@ class LaneKeepFullNode(Node):
 
         # ROI layout: near ROI is weighted highest because it is most relevant for control.
         self.rois = [
-            (0.80, 0.96, 0.0, 1.0, 0.55),
-            (0.68, 0.80, 0.0, 1.0, 0.30),
+            (0.80, 0.96, 0.0, 1.0, 0.50),
+            (0.68, 0.80, 0.0, 1.0, 0.27),
             (0.56, 0.68, 0.0, 1.0, 0.15),
+            (0.44, 0.56, 0.0, 1.0, 0.08),
         ]
 
         self.lower_yellow = np.array([0, 0, 145], dtype=np.uint8)
         self.upper_yellow = np.array([255, 255, 255], dtype=np.uint8)
 
         self.min_contour_area = 120.0
-        self.lookahead_ratio = 0.82
-        self.default_lane_width_ratios = [0.42, 0.34, 0.26]
+        self.roi_min_contour_area_scales = [1.0, 0.85, 0.70, 0.55]
+        self.lookahead_ratio = 0.76
+        self.default_lane_width_ratios = [0.42, 0.34, 0.26, 0.20]
         self.min_lane_width_ratio = 0.12
         self.max_lane_width_ratio = 0.85
         self.width_update_alpha = 0.25
@@ -193,7 +195,7 @@ class LaneKeepFullNode(Node):
             candidates = []
             for contour in contours:
                 area = cv2.contourArea(contour)
-                if area < self.min_contour_area:
+                if area < self.get_min_contour_area(index):
                     continue
 
                 moments = cv2.moments(contour)
@@ -271,6 +273,10 @@ class LaneKeepFullNode(Node):
     def infer_single_edge_side(self, edge_x, image_width):
         reference_center = self.smoothed_target_x if self.smoothed_target_x is not None else image_width / 2.0
         return 'left' if edge_x < reference_center else 'right'
+
+    def get_min_contour_area(self, roi_index):
+        scale_index = min(roi_index, len(self.roi_min_contour_area_scales) - 1)
+        return self.min_contour_area * self.roi_min_contour_area_scales[scale_index]
 
     def get_expected_lane_width(self, roi_index, image_width):
         lane_width = self.estimated_lane_widths[roi_index]
