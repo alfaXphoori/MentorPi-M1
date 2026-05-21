@@ -53,7 +53,7 @@ class FSDLaneKeep(Node):
         self.min_speed = 0.04          # ดรอปความเร็วต่ำสุดให้ช้าลงเวลาเข้าโค้ง
         self.base_speed = 0.12         # ลดความเร็วพื้นฐานลง
         self.max_speed = 0.18          # ลดความเร็วทางตรงสูงสุดลง
-        self.search_turn_speed = 0.60
+        self.search_turn_speed = 1.00  # เพิ่มความเร็วในการหมุนหาเส้น (ตามที่ผู้ใช้ขอ)
         self.max_angular_speed = 1.10  # ลดวงเลี้ยวสูงสุดไม่ให้หักพวงมาลัยรุนแรงไป
 
         # Tuned for smoothness: lower kp for gentle steering, higher kd to stop oscillation
@@ -72,6 +72,7 @@ class FSDLaneKeep(Node):
         self.lost_lane_frames = 0
         self.straight_frame_count = 0
         self.search_direction = 1.0
+        self.recovering = False
 
         self.get_logger().info(
             'FSD Lane Keep Node Started (dual-edge centre tracking).')
@@ -110,7 +111,17 @@ class FSDLaneKeep(Node):
                             and path_shift < self.straight_path_thresh)
                 self.straight_frame_count = (self.straight_frame_count + 1) if straight else 0
 
-                twist.linear.x = self._speed(norm_err, path_shift, len(detections), dual_count)
+                # Recovery logic: if we were lost, wait until centered before moving forward
+                if self.recovering:
+                    if abs(error) < 60.0:  # Roughly centered
+                        self.recovering = False
+                
+                if self.recovering:
+                    twist.linear.x = 0.0
+                    cv2.putText(debug, 'RECOVERING: CENTERING...', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
+                else:
+                    twist.linear.x = self._speed(norm_err, path_shift, len(detections), dual_count)
+                    
                 angular = -(self.kp * error + self.kd * d_error)
                 twist.angular.z = float(np.clip(angular, -self.max_angular_speed, self.max_angular_speed))
 
@@ -129,6 +140,8 @@ class FSDLaneKeep(Node):
             else:
                 self.lost_lane_frames += 1
                 self.straight_frame_count = 0
+                self.recovering = True
+                
                 twist.linear.x = 0.0
                 twist.angular.z = self._search_turn()
 
