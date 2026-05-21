@@ -171,18 +171,18 @@ class FsdDriveNode(Node):
             return
 
         for obj in msg.objects:
-            if obj.score >= 0.60:
-                if obj.class_name in ['right', 'turn_right', 'เลี้ยวขวา']:
+            if obj.score >= 0.50:
+                if obj.class_name in ['R', 'right', 'turn_right', 'เลี้ยวขวา']:
                     self.get_logger().info(f'Sign: Turn Right detected (score {obj.score:.2f}). Initiating 90-deg turn.')
                     self.sign_target_yaw = _normalize_angle(self.current_yaw - (math.pi / 2))
                     self.state = "TURNING_RIGHT_SIGN"
                     break
-                elif obj.class_name in ['park', 'parking', 'จอด']:
+                elif obj.class_name in ['P', 'park', 'parking', 'จอด', 'stop']:
                     self.get_logger().info(f'Sign: Park detected (score {obj.score:.2f}). Initiating 90-deg turn to park.')
                     self.sign_target_yaw = _normalize_angle(self.current_yaw - (math.pi / 2))
                     self.state = "PARKING_TURN"
                     break
-                elif obj.class_name in ['go', 'straight', 'ตรง']:
+                elif obj.class_name in ['S', 'go', 'straight', 'ตรง', 'go_straight']:
                     # user specifically requested to keep following lane ("เกาะเส้นตามเดิม")
                     # self.get_logger().info('Sign: Go Straight detected. Staying in lane.')
                     break
