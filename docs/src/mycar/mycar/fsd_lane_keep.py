@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-"""FSD Lane Keep Node — centre-of-lane tracking.
+"""FSD Lane Keep Node - centre-of-lane tracking.
 
 Detects both left and right lane edges in multiple ROIs, computes the
 true lane centre, and publishes steering commands to /fsd/lane_vel.
@@ -28,7 +28,7 @@ class FSDLaneKeep(Node):
             self.image_callback, 10)
         self.bridge = CvBridge()
 
-        # ---------- ROIs (near → far) ----------
+        # ---------- ROIs (near -> far) ----------
         # (y_start, y_end, x_start, x_end, weight)
         self.rois = [
             (0.80, 0.96, 0.0, 1.0, 0.50),   # Near
@@ -37,7 +37,7 @@ class FSDLaneKeep(Node):
             (0.44, 0.56, 0.0, 1.0, 0.08),   # Far
         ]
 
-        # ---------- Colour thresholds (LAB — yellow) ----------
+        # ---------- Colour thresholds (LAB - yellow) ----------
         self.lower_yellow = np.array([0, 0, 145], dtype=np.uint8)
         self.upper_yellow = np.array([255, 255, 255], dtype=np.uint8)
 
@@ -215,7 +215,7 @@ class FSDLaneKeep(Node):
         sorted_c = sorted(candidates, key=lambda c: c['cx'])
         exp_w = self._expected_width(roi_idx, img_w)
 
-        # Two or more candidates → try true dual-edge
+        # Two or more candidates -> try true dual-edge
         if len(sorted_c) >= 2:
             left, right = sorted_c[0], sorted_c[-1]
             measured = right['cx'] - left['cx']
@@ -228,7 +228,7 @@ class FSDLaneKeep(Node):
                     'width': lw, 'both': True,
                 }
 
-        # Fallback: single-edge → infer centre from estimated lane width
+        # Fallback: single-edge -> infer centre from estimated lane width
         edge = max(candidates, key=lambda c: c['area'])
         ref = self.smoothed_target_x if self.smoothed_target_x else img_w / 2.0
         if edge['cx'] < ref:                     # edge is left boundary
