@@ -149,6 +149,14 @@ class LaneKeepFullNode(Node):
     # ----------------------------------------------------------------------- #
     def image_callback(self, msg: Image):
         cv_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+        
+        # Resize image to reduce processing load (target width = 320)
+        target_width = 320
+        h_orig, w_orig = cv_image.shape[:2]
+        if w_orig > target_width:
+            target_height = int(h_orig * (target_width / w_orig))
+            cv_image = cv2.resize(cv_image, (target_width, target_height), interpolation=cv2.INTER_AREA)
+
         h, w, _ = cv_image.shape
 
         mask          = self._create_mask(cv_image)
