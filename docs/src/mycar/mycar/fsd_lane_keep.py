@@ -31,10 +31,8 @@ class FSDLaneKeep(Node):
         # ---------- ROIs (near -> far) ----------
         # (y_start, y_end, x_start, x_end, weight)
         self.rois = [
-            (0.80, 0.96, 0.0, 1.0, 0.50),   # Near
-            (0.68, 0.80, 0.0, 1.0, 0.27),   # Mid
-            (0.56, 0.68, 0.0, 1.0, 0.15),   # Far-mid
-            (0.44, 0.56, 0.0, 1.0, 0.08),   # Far
+            (0.80, 0.96, 0.0, 1.0, 0.65),   # Near
+            (0.68, 0.80, 0.0, 1.0, 0.35),   # Mid
         ]
 
         # ---------- Colour thresholds (LAB - yellow) ----------
@@ -43,8 +41,8 @@ class FSDLaneKeep(Node):
 
         # ---------- Lane-width estimation ----------
         self.min_contour_area = 120.0
-        self.roi_area_scales = [1.0, 0.85, 0.70, 0.55]
-        self.default_lane_width_ratios = [0.42, 0.34, 0.26, 0.20]
+        self.roi_area_scales = [1.0, 0.85]
+        self.default_lane_width_ratios = [0.42, 0.34]
         self.min_lane_width_ratio = 0.12
         self.max_lane_width_ratio = 0.85
         self.width_ema_alpha = 0.25
