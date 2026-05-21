@@ -38,6 +38,7 @@ setup(
             'fsd_lane_keep = mycar.fsd_lane_keep:main',
             'fsd_lidar_safety = mycar.fsd_lidar_safety:main',
             'fsd_mission_manager = mycar.fsd_mission_manager:main',
+            'fsd_yolo = mycar.fsd_yolo:main',
         ],
     },
 )
