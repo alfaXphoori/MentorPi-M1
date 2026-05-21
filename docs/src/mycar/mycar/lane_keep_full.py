@@ -391,9 +391,24 @@ class LaneKeepFullNode(Node):
         # Single edge -- use half lane-width as offset
         # Physical: robot must be at lane_centre = edge +/- lane_width_px/2
         primary = max(candidates, key=lambda c: c['area'])
-        ref_cx  = self.smoothed_target_x if self.smoothed_target_x is not None else image_width / 2.0
+        
+        is_left_edge = None
+        # If we are recovering from a search, use our rotation to confidently identify the line
+        if self.initial_yaw is not None:
+            yaw_diff = _normalize_angle(self.current_yaw - self.initial_yaw)
+            if yaw_diff < -0.05:
+                # Rotated right -> the line we see must be the left edge of the lane
+                is_left_edge = True
+            elif yaw_diff > 0.05:
+                # Rotated left -> the line we see must be the right edge of the lane
+                is_left_edge = False
+                
+        # Fallback to screen position if not searching or haven't rotated enough
+        if is_left_edge is None:
+            ref_cx  = self.smoothed_target_x if self.smoothed_target_x is not None else image_width / 2.0
+            is_left_edge = (primary['cx'] < ref_cx)
 
-        if primary['cx'] < ref_cx:
+        if is_left_edge:
             # Left edge detected -> centre is to the right
             lane_center = primary['cx'] + expected_width * self.HALF_LANE_RATIO
             return {
