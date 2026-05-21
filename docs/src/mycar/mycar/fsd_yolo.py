@@ -18,7 +18,7 @@ from geometry_msgs.msg import Twist
 from interfaces.msg import ObjectsInfo
 from std_srvs.srv import SetBool, Trigger
 from sdk.common import colors, plot_one_box
-from example.self_driving import lane_detect
+from mycar import fsd_lane_detect as lane_detect
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
 from ros_robot_controller_msgs.msg import BuzzerState, SetPWMServoState, PWMServoState
