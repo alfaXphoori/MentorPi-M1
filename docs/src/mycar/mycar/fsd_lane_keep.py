@@ -51,7 +51,7 @@ class FSDLaneKeep(Node):
         self.estimated_lane_widths = [None] * len(self.rois)
 
         # ---------- Control ----------
-        self.lookahead_ratio = 0.76
+        self.lookahead_ratio = 0.86    # เพิ่มค่าให้มองเป้าหมายใกล้หน้ารถมากขึ้น (กันเลี้ยวเร็วเกินไป)
         self.min_speed = 0.04          # ดรอปความเร็วต่ำสุดให้ช้าลงเวลาเข้าโค้ง
         self.base_speed = 0.12         # ลดความเร็วพื้นฐานลง
         self.max_speed = 0.18          # ลดความเร็วทางตรงสูงสุดลง
