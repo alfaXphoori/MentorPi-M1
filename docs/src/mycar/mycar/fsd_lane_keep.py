@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-"""FSD Lane Keep Node - centre-of-lane tracking.
+"""FSD Lane Keep Node - centre-of-lane tracking with IMU-based search.
 
-Detects both left and right lane edges in multiple ROIs, computes the
-true lane centre, and publishes steering commands to /fsd/lane_vel.
-When only one edge is visible the missing edge is inferred from the
-estimated lane width so the car stays centred.
+Rules:
+  - Drive forward ONLY when both L and R lane edges are detected.
+  - If lane is lost, rotate by 45 degrees at a time using IMU to search.
+  - After each 45-deg scan, check for lane. Repeat up to 4 times (180 deg total).
 """
 import cv2
+import math
 import numpy as np
 import rclpy
 from cv_bridge import CvBridge
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, Imu
 
 
 class FSDLaneKeep(Node):
@@ -26,6 +27,8 @@ class FSDLaneKeep(Node):
         self.subscription = self.create_subscription(
             Image, '/ascamera/camera_publisher/rgb0/image',
             self.image_callback, 10)
+        self.imu_sub = self.create_subscription(
+            Imu, '/imu', self.imu_callback, 10)
         self.bridge = CvBridge()
 
         # ---------- ROIs (near -> far) ----------
@@ -49,14 +52,14 @@ class FSDLaneKeep(Node):
         self.estimated_lane_widths = [None] * len(self.rois)
 
         # ---------- Control ----------
-        self.lookahead_ratio = 0.86    # เพิ่มค่าให้มองเป้าหมายใกล้หน้ารถมากขึ้น (กันเลี้ยวเร็วเกินไป)
-        self.min_speed = 0.04          # ดรอปความเร็วต่ำสุดให้ช้าลงเวลาเข้าโค้ง
-        self.base_speed = 0.12         # ลดความเร็วพื้นฐานลง
-        self.max_speed = 0.18          # ลดความเร็วทางตรงสูงสุดลง
-        self.search_turn_speed = 1.00  # เพิ่มความเร็วในการหมุนหาเส้น (ตามที่ผู้ใช้ขอ)
-        self.max_angular_speed = 1.10  # ลดวงเลี้ยวสูงสุดไม่ให้หักพวงมาลัยรุนแรงไป
+        self.lookahead_ratio = 0.86
+        self.min_speed = 0.04
+        self.base_speed = 0.12
+        self.max_speed = 0.18
+        self.max_angular_speed = 1.10
+        self.imu_turn_speed = 0.80   # Angular speed used during IMU-based search
 
-        # Tuned for smoothness: lower kp for gentle steering, higher kd to stop oscillation
+        # PID
         self.kp = 0.004
         self.kd = 0.006
         self.target_smoothing = 0.65
@@ -64,21 +67,45 @@ class FSDLaneKeep(Node):
         self.straight_error_thresh = 0.08
         self.straight_path_thresh = 0.10
         self.straight_frames_required = 4
-        self.search_swap_interval = 12
 
-        # ---------- State ----------
+        # ---------- IMU State ----------
+        self.current_yaw = 0.0
+        self.imu_received = False
+
+        # ---------- Search State Machine ----------
+        # States: DRIVING | SEARCHING | CENTERING
+        self.state = 'SEARCHING'         # Start in SEARCHING until L+R found
+        self.search_target_yaw = None    # Target yaw for current 45-deg step
+        self.search_steps_done = 0       # How many 45-deg steps done
+        self.search_direction = 1.0      # +1 = left, -1 = right
+        self.max_search_steps = 8        # 8 x 45 = 360 degrees max
+
+        # ---------- Driving State ----------
         self.smoothed_target_x = None
         self.last_error = 0.0
-        self.lost_lane_frames = 0
         self.straight_frame_count = 0
-        self.search_direction = 1.0
-        self.recovering = False
 
-        self.get_logger().info(
-            'FSD Lane Keep Node Started (dual-edge centre tracking).')
+        self.get_logger().info('FSD Lane Keep Node Started (IMU 45-deg search, L+R required).')
 
     # ------------------------------------------------------------------ #
-    # Image callback
+    # IMU callback
+    # ------------------------------------------------------------------ #
+    def imu_callback(self, msg):
+        q = msg.orientation
+        siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+        cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
+        self.current_yaw = math.atan2(siny_cosp, cosy_cosp)
+        self.imu_received = True
+
+    def normalize_angle(self, angle):
+        while angle > math.pi:
+            angle -= 2 * math.pi
+        while angle < -math.pi:
+            angle += 2 * math.pi
+        return angle
+
+    # ------------------------------------------------------------------ #
+    # Image callback - main loop
     # ------------------------------------------------------------------ #
     def image_callback(self, msg):
         try:
@@ -91,69 +118,142 @@ class FSDLaneKeep(Node):
             detections, dual_count = self._detect_lanes(mask, debug)
             twist = Twist()
 
-            if detections:
-                raw_x, path_shift = self._estimate_target(detections, h, w, debug)
-                self.smoothed_target_x = self._smooth(raw_x)
+            # Check if we have BOTH L and R edges in at least 1 ROI
+            has_both = dual_count >= 1
 
-                error = self.smoothed_target_x - w / 2.0
-                norm_err = error / max(w / 2.0, 1.0)
-                d_error = error - self.last_error
+            # ---- STATE: SEARCHING (IMU 45-deg steps) ----
+            if self.state in ('SEARCHING', 'CENTERING'):
+                if has_both:
+                    # Found L+R -> switch to CENTERING first
+                    if self.state == 'SEARCHING':
+                        self.state = 'CENTERING'
+                        self.search_target_yaw = None
+                        self.search_steps_done = 0
+                        self.get_logger().info('Lane found (L+R). Centering before driving...')
 
-                # Remember last seen side for search direction
-                if error > 1.0:
-                    self.search_direction = -1.0
-                elif error < -1.0:
-                    self.search_direction = 1.0
+                if self.state == 'CENTERING' and has_both:
+                    # Compute error and center the robot before moving
+                    raw_x, _ = self._estimate_target(detections, h, w, debug)
+                    self.smoothed_target_x = self._smooth(raw_x)
+                    error = self.smoothed_target_x - w / 2.0
+                    norm_err = error / max(w / 2.0, 1.0)
 
-                # Straight-line detection
-                straight = (dual_count >= 2
-                            and abs(norm_err) < self.straight_error_thresh
-                            and path_shift < self.straight_path_thresh)
-                self.straight_frame_count = (self.straight_frame_count + 1) if straight else 0
-
-                # Recovery logic: if we were lost, wait until centered before moving forward
-                if self.recovering:
-                    if abs(error) < 60.0:  # Roughly centered
-                        self.recovering = False
-                
-                if self.recovering:
+                    angular = -(self.kp * error + self.kd * (error - self.last_error))
                     twist.linear.x = 0.0
-                    cv2.putText(debug, 'RECOVERING: CENTERING...', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
-                else:
+                    twist.angular.z = float(np.clip(angular, -self.max_angular_speed, self.max_angular_speed))
+                    self.last_error = error
+
+                    # Switch to DRIVING when close to center
+                    if abs(norm_err) < 0.10:
+                        self.state = 'DRIVING'
+                        self.get_logger().info('Centered! Starting to drive.')
+
+                    cv2.putText(debug, f'CENTERING  ERR:{int(error)}',
+                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
+
+                elif self.state == 'SEARCHING':
+                    # No L+R seen -> rotate 45 degrees using IMU
+                    twist = self._imu_search_step(debug)
+
+            # ---- STATE: DRIVING (only when L+R detected) ----
+            elif self.state == 'DRIVING':
+                if has_both:
+                    raw_x, path_shift = self._estimate_target(detections, h, w, debug)
+                    self.smoothed_target_x = self._smooth(raw_x)
+
+                    error = self.smoothed_target_x - w / 2.0
+                    norm_err = error / max(w / 2.0, 1.0)
+                    d_error = error - self.last_error
+
+                    straight = (dual_count >= 1
+                                and abs(norm_err) < self.straight_error_thresh
+                                and path_shift < self.straight_path_thresh)
+                    self.straight_frame_count = (self.straight_frame_count + 1) if straight else 0
+
                     twist.linear.x = self._speed(norm_err, path_shift, len(detections), dual_count)
-                    
-                angular = -(self.kp * error + self.kd * d_error)
-                twist.angular.z = float(np.clip(angular, -self.max_angular_speed, self.max_angular_speed))
+                    angular = -(self.kp * error + self.kd * d_error)
+                    twist.angular.z = float(np.clip(angular, -self.max_angular_speed, self.max_angular_speed))
+                    self.last_error = error
 
-                self.last_error = error
-                self.lost_lane_frames = 0
-
-                # Debug HUD
-                tp = (int(self.smoothed_target_x), int(h * self.lookahead_ratio))
-                cv2.circle(debug, tp, 6, (0, 255, 0), -1)
-                cv2.line(debug, (w // 2, h), tp, (0, 255, 0), 2)
-                cv2.putText(debug, f'ERR {int(error)}  SPD {twist.linear.x:.2f}',
-                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                cv2.putText(debug,
-                            f'ROIS {len(detections)}  BOTH {dual_count}  STR {self.straight_frame_count}',
-                            (10, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 0), 2)
-            else:
-                self.lost_lane_frames += 1
-                self.straight_frame_count = 0
-                self.recovering = True
-                
-                twist.linear.x = 0.0
-                twist.angular.z = self._search_turn()
-
-                cv2.putText(debug, f'SEARCHING LANE {self.lost_lane_frames}',
-                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    # HUD
+                    tp = (int(self.smoothed_target_x), int(h * self.lookahead_ratio))
+                    cv2.circle(debug, tp, 6, (0, 255, 0), -1)
+                    cv2.line(debug, (w // 2, h), tp, (0, 255, 0), 2)
+                    cv2.putText(debug, f'DRIVING  ERR:{int(error)}  SPD:{twist.linear.x:.2f}',
+                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.putText(debug, f'DUAL:{dual_count}  STR:{self.straight_frame_count}',
+                                (10, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+                else:
+                    # Lost L+R while driving -> start searching again
+                    self.state = 'SEARCHING'
+                    self.search_target_yaw = None
+                    self.search_steps_done = 0
+                    self.straight_frame_count = 0
+                    self.get_logger().warn('Lost L+R lane! Switching to SEARCHING...')
+                    twist = self._imu_search_step(debug)
 
             self.publisher_.publish(twist)
-
             combined = np.vstack((debug, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)))
             self.debug_pub.publish(self.bridge.cv2_to_imgmsg(combined, 'bgr8'))
+
         except Exception as e:
             self.get_logger().error(f'FSD Lane Error: {e}')
+
+    # ------------------------------------------------------------------ #
+    # IMU 45-degree search step
+    # ------------------------------------------------------------------ #
+    def _imu_search_step(self, debug):
+        twist = Twist()
+
+        if not self.imu_received:
+            cv2.putText(debug, 'WAITING FOR IMU...',
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            return twist
+
+        # First call: set the 45-deg target
+        if self.search_target_yaw is None:
+            step = self.search_direction * (math.pi / 4)  # 45 degrees
+            self.search_target_yaw = self.normalize_angle(self.current_yaw + step)
+            self.get_logger().info(
+                f'Search step {self.search_steps_done + 1}: rotating 45 deg to {math.degrees(self.search_target_yaw):.1f} deg')
+
+        error = self.normalize_angle(self.search_target_yaw - self.current_yaw)
+
+        # Reached the 45-deg target
+        if abs(error) < 0.06:
+            self.search_steps_done += 1
+            self.search_target_yaw = None   # Trigger next step next frame
+
+            # Alternate direction after every step: L, R, L, R ...
+            self.search_direction *= -1.0
+
+            if self.search_steps_done >= self.max_search_steps:
+                self.get_logger().warn('Max search steps reached. Resetting.')
+                self.search_steps_done = 0
+                self.search_direction = 1.0
+
+            cv2.putText(debug, f'SEARCH STEP {self.search_steps_done} DONE',
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            return twist  # Stop briefly between steps
+
+        # Proportional control for rotation
+        angular_vel = 1.2 * error
+        if angular_vel > 0 and angular_vel < 0.25: angular_vel = 0.25
+        if angular_vel < 0 and angular_vel > -0.25: angular_vel = -0.25
+        if angular_vel > self.imu_turn_speed: angular_vel = self.imu_turn_speed
+        if angular_vel < -self.imu_turn_speed: angular_vel = -self.imu_turn_speed
+
+        twist.linear.x = 0.0
+        twist.angular.z = angular_vel
+
+        steps_left = self.max_search_steps - self.search_steps_done
+        cv2.putText(debug,
+                    f'SEARCHING (IMU 45deg) Step:{self.search_steps_done + 1} Left:{steps_left}',
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        cv2.putText(debug,
+                    f'Target:{math.degrees(self.search_target_yaw):.1f}  Now:{math.degrees(self.current_yaw):.1f}',
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 165, 255), 2)
+        return twist
 
     # ------------------------------------------------------------------ #
     # Mask creation
@@ -185,7 +285,6 @@ class FSDLaneKeep(Node):
             if not contours:
                 continue
 
-            # Collect valid candidates
             candidates = []
             min_area = self.min_contour_area * self.roi_area_scales[min(idx, len(self.roi_area_scales) - 1)]
             for c in contours:
@@ -223,11 +322,9 @@ class FSDLaneKeep(Node):
         return detections, dual_count
 
     def _select_edges(self, candidates, roi_idx, img_w):
-        """Pick left + right edges; compute lane centre."""
         sorted_c = sorted(candidates, key=lambda c: c['cx'])
         exp_w = self._expected_width(roi_idx, img_w)
 
-        # Two or more candidates -> try true dual-edge
         if len(sorted_c) >= 2:
             left, right = sorted_c[0], sorted_c[-1]
             measured = right['cx'] - left['cx']
@@ -240,14 +337,13 @@ class FSDLaneKeep(Node):
                     'width': lw, 'both': True,
                 }
 
-        # Fallback: single-edge -> infer centre from estimated lane width
         edge = max(candidates, key=lambda c: c['area'])
         ref = self.smoothed_target_x if self.smoothed_target_x else img_w / 2.0
-        if edge['cx'] < ref:                     # edge is left boundary
+        if edge['cx'] < ref:
             center = edge['cx'] + exp_w / 2.0
             return {'left': edge, 'right': None, 'center': center,
                     'cy': edge['cy'], 'width': exp_w, 'both': False}
-        else:                                     # edge is right boundary
+        else:
             center = edge['cx'] - exp_w / 2.0
             return {'left': None, 'right': edge, 'center': center,
                     'cy': edge['cy'], 'width': exp_w, 'both': False}
@@ -302,26 +398,14 @@ class FSDLaneKeep(Node):
         return self.target_smoothing * raw + (1 - self.target_smoothing) * self.smoothed_target_x
 
     # ------------------------------------------------------------------ #
-    # Adaptive speed
+    # Adaptive speed (only called in DRIVING state with both edges)
     # ------------------------------------------------------------------ #
     def _speed(self, norm_err, path_shift, n_det, dual_count):
-        if n_det < 2 or dual_count == 0:
-            return self.min_speed
-        if dual_count >= 2 and self.straight_frame_count >= self.straight_frames_required:
+        if dual_count >= 1 and self.straight_frame_count >= self.straight_frames_required:
             return self.max_speed
         turn = min(1.0, abs(norm_err) * 1.8 + path_shift * 2.2)
         spd = self.base_speed - (self.base_speed - self.min_speed) * turn
-        if dual_count == 1:
-            spd = min(spd, self.base_speed - 0.02)
         return float(np.clip(spd, self.min_speed, self.base_speed))
-
-    # ------------------------------------------------------------------ #
-    # Search behaviour when lane is lost
-    # ------------------------------------------------------------------ #
-    def _search_turn(self):
-        if self.lost_lane_frames > 0 and self.lost_lane_frames % self.search_swap_interval == 0:
-            self.search_direction *= -1.0
-        return self.search_direction * self.search_turn_speed
 
     # ------------------------------------------------------------------ #
     # Debug drawing
