@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<robot name="materials">
+
+  <!-- 定义材质 -->
+  <material name="blue">
+    <color rgba="0 0 0.8 1"/>
+  </material>
+
+  <material name="white">
+    <color rgba="1 1 1 1"/>
+  </material>
+
+  <!-- 定义基座 -->
+  <xacro:macro name="base_link" params="color">
+    <link name="base_link">
+      <visual>
+        <geometry>
+          <cylinder length="0.6" radius="0.2"/>
+        </geometry>
+        <!-- 使用传入的材质参数 -->
+        <material name="${color}"/>
+      </visual>
+    </link>
+  </xacro:macro>
+
+  <!-- 定义单个腿 -->
+  <xacro:macro name="leg" params="name color xyz">
+    <link name="${name}">
+      <visual>
+        <geometry>
+          <box size="0.6 0.1 0.2"/>
+        </geometry>
+        <origin rpy="0 1.57075 0" xyz="${xyz}"/>
+        <!-- 使用传入的材质参数 -->
+        <material name="${color}"/>
+      </visual>
+    </link>
+  </xacro:macro>
+
+  <!-- 定义基座与腿之间的连接关系 -->
+  <xacro:macro name="base_to_leg" params="parent child xyz">
+    <joint name="base_to_${child}" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${child}"/>
+      <origin xyz="${xyz}"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- 使用宏来创建基座和腿 -->
+  <xacro:base_link color="blue"/>
+  <xacro:leg name="right_leg" color="white" xyz="0 -0.22 0.25"/>
+  <xacro:leg name="left_leg" color="white" xyz="0 0.22 0.25"/>
+
+  <!-- 创建基座与腿之间的连接关系 -->
+  <xacro:base_to_leg parent="base_link" child="right_leg" xyz="0 -0.22 0.25"/>
+  <xacro:base_to_leg parent="base_link" child="left_leg" xyz="0 0.22 0.25"/>
+
+</robot>

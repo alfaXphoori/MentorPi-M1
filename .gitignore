@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# AI Assistant configs and rules
+.aider*
+.clinerules
+.cursorrules
+.roorules
+.windsurfrules
+.antigravitycli/
+CLAUDE.md
+QWEN.md
+
+# ROS 2
+build/
+install/
+log/
+*.exe
