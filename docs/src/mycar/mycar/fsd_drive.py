@@ -148,20 +148,9 @@ class FsdDriveNode(Node):
         self.sign_target_yaw = 0.0
         self.maneuver_end_time = 0.0
 
-        # ---- Startup Safety (Spam 0.0 for 3 seconds to prevent motor glitch) ---- #
-        self.is_ready = False
-        self.startup_time = time.time()
-        self.startup_timer = self.create_timer(0.1, self._startup_safety_callback)
-
-        self.get_logger().info('FSD Drive Node Started. Initializing safety stop for 3 seconds...')
-
-    def _startup_safety_callback(self):
-        if time.time() - self.startup_time < 3.0:
-            self.publisher_.publish(Twist()) # Spam stop command
-        else:
-            self.is_ready = True
-            self.get_logger().info('Safety period over. AI taking control!')
-            self.startup_timer.cancel()
+        # ---- Startup Safety (Spam 0.0 for 90 frames to prevent motor glitch) ---- #
+        self.startup_frames = 0
+        self.get_logger().info('FSD Drive Node Started. Initializing safety stop for ~3 seconds...')
 
     # ----------------------------------------------------------------------- #
     # IMU callback
@@ -174,7 +163,7 @@ class FsdDriveNode(Node):
     # YOLO callback
     # ----------------------------------------------------------------------- #
     def yolo_callback(self, msg: ObjectsInfo):
-        if not self.is_ready:
+        if self.startup_frames < 90:
             return
             
         if self.state != "FOLLOW_LANE":
@@ -218,7 +207,11 @@ class FsdDriveNode(Node):
     # Camera callback  (main loop)
     # ----------------------------------------------------------------------- #
     def image_callback(self, msg: Image):
-        if not self.is_ready:
+        if self.startup_frames < 90:
+            self.startup_frames += 1
+            self.publisher_.publish(Twist())
+            if self.startup_frames == 90:
+                self.get_logger().info('Safety period over. AI taking control!')
             return
             
         cv_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
