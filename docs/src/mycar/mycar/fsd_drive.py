@@ -141,17 +141,27 @@ class FsdDriveNode(Node):
         self.search_steps_done   = 0
         self.initial_yaw         = None   # yaw when search first started
 
-        # ---- YOLO Sign State ---- #
+        # ---- State Machine ---- #
         self.state = "FOLLOW_LANE"  # FOLLOW_LANE, TURNING_RIGHT_SIGN, PARKING_TURN, PARKING_FORWARD, STOPPED
-        self.sign_target_yaw = 0.0
-        self.maneuver_end_time = 0.0
         self.consecutive_signs = 0
         self.last_seen_sign = None
+        self.sign_target_yaw = 0.0
+        self.maneuver_end_time = 0.0
 
-        self.get_logger().info(
-            f'FsdLaneKeep started | Lane={self.LANE_WIDTH_CM}cm '
-            f'Robot={self.ROBOT_WIDTH_CM}cm | IMU search {self.SEARCH_STEP_DEG}deg/step'
-        )
+        # ---- Startup Safety (Spam 0.0 for 3 seconds to prevent motor glitch) ---- #
+        self.is_ready = False
+        self.startup_time = time.time()
+        self.startup_timer = self.create_timer(0.1, self._startup_safety_callback)
+
+        self.get_logger().info('FSD Drive Node Started. Initializing safety stop for 3 seconds...')
+
+    def _startup_safety_callback(self):
+        if time.time() - self.startup_time < 3.0:
+            self.publisher_.publish(Twist()) # Spam stop command
+        else:
+            self.is_ready = True
+            self.get_logger().info('Safety period over. AI taking control!')
+            self.startup_timer.cancel()
 
     # ----------------------------------------------------------------------- #
     # IMU callback
@@ -164,6 +174,9 @@ class FsdDriveNode(Node):
     # YOLO callback
     # ----------------------------------------------------------------------- #
     def yolo_callback(self, msg: ObjectsInfo):
+        if not self.is_ready:
+            return
+            
         if self.state != "FOLLOW_LANE":
             return
             
@@ -205,6 +218,9 @@ class FsdDriveNode(Node):
     # Camera callback  (main loop)
     # ----------------------------------------------------------------------- #
     def image_callback(self, msg: Image):
+        if not self.is_ready:
+            return
+            
         cv_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
         
         # Resize image to reduce processing load (target width = 320)
