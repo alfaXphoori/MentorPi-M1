@@ -27,6 +27,9 @@ class YoloLogicNode(Node):
 
         self.bridge = CvBridge()
         
+        # Publisher for debug image to be viewed in rqt
+        self.debug_pub = self.create_publisher(Image, '/yolo_logic_debug', 10)
+        
         if self.show_video:
             self.image_sub = self.create_subscription(Image, '/yolov5_ros2/result_img', self.image_callback, 10)
 
@@ -67,6 +70,10 @@ class YoloLogicNode(Node):
             if self.state != "SEARCHING":
                 cv2.putText(cv_image, f"Action: {self.current_sign}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
             
+            # Publish the image with text so it can be viewed in rqt
+            debug_msg = self.bridge.cv2_to_imgmsg(cv_image, "bgr8")
+            self.debug_pub.publish(debug_msg)
+
             cv2.imshow("YOLO Sign Detection & Logic", cv_image)
             cv2.waitKey(1)
         except Exception as e:
