@@ -51,7 +51,7 @@ def _normalize_angle(angle):
 # --------------------------------------------------------------------------- #
 # Node
 # --------------------------------------------------------------------------- #
-class FsdLaneKeepNode(Node):
+class FsdDriveNode(Node):
     # ----- tuneable constants ----- #
     LANE_WIDTH_CM   = 30.0
     ROBOT_WIDTH_CM  = 18.0
@@ -65,7 +65,7 @@ class FsdLaneKeepNode(Node):
     IMU_REACH_TOLERANCE       = 0.05  # rad  (~3 deg) -> "close enough"
 
     def __init__(self):
-        super().__init__('fsd_lane_keep')
+        super().__init__('fsd_drive')
 
         # ---- publishers / subscribers ---- #
         self.publisher_  = self.create_publisher(Twist, '/controller/cmd_vel', 10)
@@ -635,7 +635,7 @@ class FsdLaneKeepNode(Node):
 # --------------------------------------------------------------------------- #
 def main(args=None):
     rclpy.init(args=args)
-    node = FsdLaneKeepNode()
+    node = FsdDriveNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

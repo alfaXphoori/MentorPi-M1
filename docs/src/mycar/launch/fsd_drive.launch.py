@@ -46,9 +46,9 @@ def launch_setup(context):
             "pub_result_img": True}]
     )
 
-    fsd_lane_keep_node = Node(
+    fsd_drive_node = Node(
         package='mycar',
-        executable='fsd_lane_keep',
+        executable='fsd_drive',
         output='screen',
         parameters=[{'start': start}, {'only_line_follow': only_line_follow}],
     )
@@ -57,8 +57,8 @@ def launch_setup(context):
             only_line_follow_arg,
             depth_camera_launch,
             controller_launch,
-            yolov5_node, 
-            fsd_lane_keep_node,
+            yolov5_node,
+            fsd_drive_node,
             ]
 
 def generate_launch_description():
