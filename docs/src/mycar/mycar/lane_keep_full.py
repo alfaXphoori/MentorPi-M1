@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 """
-LaneKeepFullNode — lane-centring controller with IMU-based 60-degree search.
+LaneKeepFullNode -- lane-centring controller with IMU-based 60-degree search.
 
 Physical dimensions
   Lane  width : 30 cm
   Robot width : 18 cm
-  → clearance each side : 6 cm
-  → lane centre offset from one edge : 15 cm  (= lane_width / 2)
+  -> clearance each side : 6 cm
+  -> lane centre offset from one edge : 15 cm  (= lane_width / 2)
 
 IMU search behaviour
   When the lane is lost for more than LOST_FRAMES_BEFORE_SEARCH frames,
-  the robot stops and rotates by ±60 degrees using the IMU yaw.
-  Direction alternates L → R → L … until the lane is found again.
+  the robot stops and rotates by +/-60 degrees using the IMU yaw.
+  Direction alternates L -> R -> L ... until the lane is found again.
   Maximum SEARCH_STEP_LIMIT steps before resetting to the original heading.
 """
 
@@ -28,7 +28,7 @@ from sensor_msgs.msg import Image, Imu
 
 
 # --------------------------------------------------------------------------- #
-# Quaternion → yaw helper
+# Quaternion -> yaw helper
 # --------------------------------------------------------------------------- #
 def _yaw_from_quaternion(q):
     """Return yaw angle (radians) from a geometry_msgs/Quaternion."""
@@ -38,7 +38,7 @@ def _yaw_from_quaternion(q):
 
 
 def _normalize_angle(angle):
-    """Wrap angle to [-π, π]."""
+    """Wrap angle to [-pi, pi]."""
     while angle > math.pi:
         angle -= 2.0 * math.pi
     while angle < -math.pi:
@@ -56,11 +56,11 @@ class LaneKeepFullNode(Node):
     # ratio of lane width that = half-lane offset (always 0.5)
     HALF_LANE_RATIO = 0.5
 
-    LOST_FRAMES_BEFORE_SEARCH = 8   # frames without detection → start IMU search
+    LOST_FRAMES_BEFORE_SEARCH = 8   # frames without detection -> start IMU search
     SEARCH_STEP_DEG           = 60.0  # degrees per IMU search step
     SEARCH_STEP_LIMIT         = 6    # max steps before giving up & resetting
     IMU_TURN_SPEED            = 0.70  # rad/s cap during IMU search
-    IMU_REACH_TOLERANCE       = 0.05  # rad  (~3 deg) → "close enough"
+    IMU_REACH_TOLERANCE       = 0.05  # rad  (~3 deg) -> "close enough"
 
     def __init__(self):
         super().__init__('lane_keep_full')
@@ -80,7 +80,7 @@ class LaneKeepFullNode(Node):
         )
         self.bridge = CvBridge()
 
-        # ---- ROI layout: near → far, higher weight near ---- #
+        # ---- ROI layout: near -> far, higher weight near ---- #
         self.rois = [
             (0.80, 0.96, 0.0, 1.0, 0.50),
             (0.68, 0.80, 0.0, 1.0, 0.27),
@@ -134,7 +134,7 @@ class LaneKeepFullNode(Node):
 
         self.get_logger().info(
             f'LaneKeepFull started | Lane={self.LANE_WIDTH_CM}cm '
-            f'Robot={self.ROBOT_WIDTH_CM}cm | IMU search {self.SEARCH_STEP_DEG}°/step'
+            f'Robot={self.ROBOT_WIDTH_CM}cm | IMU search {self.SEARCH_STEP_DEG}deg/step'
         )
 
     # ----------------------------------------------------------------------- #
@@ -245,8 +245,8 @@ class LaneKeepFullNode(Node):
             self.search_target_yaw = _normalize_angle(self.current_yaw + step)
             self.get_logger().info(
                 f'IMU search step {self.search_steps_done + 1}: '
-                f'rotating {self.SEARCH_STEP_DEG * self.search_direction:+.0f}° '
-                f'→ target {math.degrees(self.search_target_yaw):.1f}°'
+                f'rotating {self.SEARCH_STEP_DEG * self.search_direction:+.0f}deg '
+                f'-> target {math.degrees(self.search_target_yaw):.1f}deg'
             )
 
         error = _normalize_angle(self.search_target_yaw - self.current_yaw)
@@ -255,7 +255,7 @@ class LaneKeepFullNode(Node):
             # Step complete
             self.search_steps_done += 1
             self.search_target_yaw  = None
-            # Alternate direction: L → R → L → …
+            # Alternate direction: L -> R -> L -> ...
             self.search_direction  *= -1.0
 
             if self.search_steps_done >= self.SEARCH_STEP_LIMIT:
@@ -356,7 +356,7 @@ class LaneKeepFullNode(Node):
         return detections, dual_roi_count
 
     # ----------------------------------------------------------------------- #
-    # Edge selection  —  lane centering with physical-dimension offset
+    # Edge selection  --  lane centering with physical-dimension offset
     # ----------------------------------------------------------------------- #
     def _select_edges(self, candidates, roi_idx, image_width):
         sorted_c = sorted(candidates, key=lambda c: c['cx'])
@@ -380,13 +380,13 @@ class LaneKeepFullNode(Node):
                     'both_edges':  True,
                 }
 
-        # Single edge — use half lane-width as offset
-        # Physical: robot must be at lane_centre = edge ± lane_width_px/2
+        # Single edge -- use half lane-width as offset
+        # Physical: robot must be at lane_centre = edge +/- lane_width_px/2
         primary = max(candidates, key=lambda c: c['area'])
         ref_cx  = self.smoothed_target_x if self.smoothed_target_x is not None else image_width / 2.0
 
         if primary['cx'] < ref_cx:
-            # Left edge detected → centre is to the right
+            # Left edge detected -> centre is to the right
             lane_center = primary['cx'] + expected_width * self.HALF_LANE_RATIO
             return {
                 'left_edge':  primary,
@@ -397,7 +397,7 @@ class LaneKeepFullNode(Node):
                 'both_edges':  False,
             }
         else:
-            # Right edge detected → centre is to the left
+            # Right edge detected -> centre is to the left
             lane_center = primary['cx'] - expected_width * self.HALF_LANE_RATIO
             return {
                 'left_edge':  None,
