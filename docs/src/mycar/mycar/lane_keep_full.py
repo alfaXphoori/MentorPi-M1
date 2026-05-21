@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 """
-LaneKeepFullNode -- lane-centring controller with IMU-based 60-degree search.
+LaneKeepFullNode -- lane-centring controller with IMU-based 30-degree search.
 
 Physical dimensions
   Lane  width : 30 cm
@@ -11,7 +11,7 @@ Physical dimensions
 
 IMU search behaviour
   When the lane is lost for more than LOST_FRAMES_BEFORE_SEARCH frames,
-  the robot stops and rotates by +/-60 degrees using the IMU yaw.
+  the robot stops and rotates by +/-30 degrees using the IMU yaw.
   Direction alternates L -> R -> L ... until the lane is found again.
   Maximum SEARCH_STEP_LIMIT steps before resetting to the original heading.
 """
@@ -57,8 +57,8 @@ class LaneKeepFullNode(Node):
     HALF_LANE_RATIO = 0.5
 
     LOST_FRAMES_BEFORE_SEARCH = 8   # frames without detection -> start IMU search
-    SEARCH_STEP_DEG           = 60.0  # degrees per IMU search step
-    SEARCH_STEP_LIMIT         = 6    # max steps before giving up & resetting
+    SEARCH_STEP_DEG           = 30.0  # degrees per IMU search step
+    SEARCH_STEP_LIMIT         = 12   # max steps before giving up & resetting
     IMU_TURN_SPEED            = 0.70  # rad/s cap during IMU search
     IMU_REACH_TOLERANCE       = 0.05  # rad  (~3 deg) -> "close enough"
 
