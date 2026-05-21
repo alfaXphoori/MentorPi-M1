@@ -36,7 +36,7 @@ class FsdYoloNode(Node):
         self.image_queue = queue.Queue(maxsize=2)
         
         # คลาสที่ตรวจจับเฉพาะ ตรง, เลี้ยวขวา, และ จอด park
-        self.classes = ['go', 'straight', 'ตรง', 'right', 'turn_right', 'เลี้ยวขวา', 'park', 'parking', 'จอด']
+        self.classes = ['go', 'right', 'park']
         
         self.display = True
         self.bridge = CvBridge()
@@ -321,15 +321,15 @@ class FsdYoloNode(Node):
                 class_name = i.class_name
                 center = (int((i.box[0] + i.box[2])/2), int((i.box[1] + i.box[3])/2))
                 
-                if class_name in ['right', 'turn_right', 'เลี้ยวขวา']:
+                if class_name == 'right':
                     self.count_right += 1
                     self.count_right_miss = 0
                     if self.count_right >= 5:
                         self.turn_right = True
                         self.count_right = 0
-                elif class_name in ['park', 'parking', 'จอด']:
+                elif class_name == 'park':
                     self.park_x = center[0]
-                elif class_name in ['go', 'straight', 'ตรง']:
+                elif class_name == 'go':
                     self.count_go += 1
                     if self.count_go >= 5:
                         self.go_straight = True
