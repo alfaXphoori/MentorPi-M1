@@ -25,6 +25,8 @@ from cv_bridge import CvBridge
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
 from sensor_msgs.msg import Image, Imu
+from interfaces.msg import ObjectsInfo
+import time
 
 
 # --------------------------------------------------------------------------- #
@@ -66,7 +68,7 @@ class FsdLaneKeepNode(Node):
         super().__init__('fsd_lane_keep')
 
         # ---- publishers / subscribers ---- #
-        self.publisher_  = self.create_publisher(Twist, '/lane_vel', 10)
+        self.publisher_  = self.create_publisher(Twist, '/controller/cmd_vel', 10)
         self.debug_pub   = self.create_publisher(Image, '/lane_keep_full_debug', 10)
 
         self.cam_sub = self.create_subscription(
@@ -77,6 +79,9 @@ class FsdLaneKeepNode(Node):
         )
         self.imu_sub = self.create_subscription(
             Imu, '/imu', self.imu_callback, 10
+        )
+        self.yolo_sub = self.create_subscription(
+            ObjectsInfo, '/yolov5_ros2/object_detect', self.yolo_callback, 10
         )
         self.bridge = CvBridge()
 
@@ -132,6 +137,13 @@ class FsdLaneKeepNode(Node):
         self.search_steps_done   = 0
         self.initial_yaw         = None   # yaw when search first started
 
+        # ---- YOLO Sign State ---- #
+        self.state = "FOLLOW_LANE"  # FOLLOW_LANE, TURNING_RIGHT_SIGN, PARKING_TURN, PARKING_FORWARD, STOPPED
+        self.sign_target_yaw = 0.0
+        self.maneuver_end_time = 0.0
+        self.consecutive_signs = 0
+        self.last_seen_sign = None
+
         self.get_logger().info(
             f'FsdLaneKeep started | Lane={self.LANE_WIDTH_CM}cm '
             f'Robot={self.ROBOT_WIDTH_CM}cm | IMU search {self.SEARCH_STEP_DEG}deg/step'
@@ -143,6 +155,43 @@ class FsdLaneKeepNode(Node):
     def imu_callback(self, msg: Imu):
         self.current_yaw  = _yaw_from_quaternion(msg.orientation)
         self.imu_received = True
+
+    # ----------------------------------------------------------------------- #
+    # YOLO callback
+    # ----------------------------------------------------------------------- #
+    def yolo_callback(self, msg: ObjectsInfo):
+        if self.state != "FOLLOW_LANE":
+            return
+            
+        if not self.imu_received:
+            return
+
+        for obj in msg.objects:
+            if obj.score > 0.7:
+                if obj.class_name == self.last_seen_sign:
+                    self.consecutive_signs += 1
+                else:
+                    self.last_seen_sign = obj.class_name
+                    self.consecutive_signs = 1
+
+                if self.consecutive_signs >= 3:
+                    if obj.class_name in ['right', 'turn_right', 'เลี้ยวขวา']:
+                        self.get_logger().info('Sign: Turn Right detected. Initiating 90-deg turn.')
+                        self.sign_target_yaw = _normalize_angle(self.current_yaw - (math.pi / 2))
+                        self.state = "TURNING_RIGHT_SIGN"
+                        self.consecutive_signs = 0
+                        break
+                    elif obj.class_name in ['park', 'parking', 'จอด']:
+                        self.get_logger().info('Sign: Park detected. Initiating 90-deg turn to park.')
+                        self.sign_target_yaw = _normalize_angle(self.current_yaw - (math.pi / 2))
+                        self.state = "PARKING_TURN"
+                        self.consecutive_signs = 0
+                        break
+                    elif obj.class_name in ['go', 'straight', 'ตรง']:
+                        # user specifically requested to keep following lane ("เกาะเส้นตามเดิม")
+                        # self.get_logger().info('Sign: Go Straight detected. Staying in lane.')
+                        self.consecutive_signs = 0
+                        break
 
     # ----------------------------------------------------------------------- #
     # Camera callback  (main loop)
@@ -224,6 +273,50 @@ class FsdLaneKeepNode(Node):
             else:
                 # IMU 60-degree search
                 twist = self._imu_search_step(debug_overlay)
+
+        # ---- OVERRIDE TWIST IF EXECUTING SIGN MANEUVER ---- #
+        if self.state == "TURNING_RIGHT_SIGN":
+            error = _normalize_angle(self.sign_target_yaw - self.current_yaw)
+            if abs(error) < self.IMU_REACH_TOLERANCE * 2: # reached
+                self.get_logger().info('Right turn complete. Resuming lane follow.')
+                self.state = "FOLLOW_LANE"
+            else:
+                angular_vel = 1.0 * error
+                angular_vel = float(np.clip(angular_vel, -self.max_angular_z, self.max_angular_z))
+                if 0 < angular_vel < 0.25: angular_vel = 0.25
+                elif -0.25 < angular_vel < 0: angular_vel = -0.25
+                twist.linear.x = 0.1 # slight forward
+                twist.angular.z = angular_vel
+            cv2.putText(debug_overlay, 'STATE: TURNING_RIGHT_SIGN', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            
+        elif self.state == "PARKING_TURN":
+            error = _normalize_angle(self.sign_target_yaw - self.current_yaw)
+            if abs(error) < self.IMU_REACH_TOLERANCE * 2: # reached
+                self.get_logger().info('Parking turn complete. Moving forward into spot.')
+                self.state = "PARKING_FORWARD"
+                self.maneuver_end_time = time.time() + 1.2
+            else:
+                angular_vel = 1.0 * error
+                angular_vel = float(np.clip(angular_vel, -self.max_angular_z, self.max_angular_z))
+                if 0 < angular_vel < 0.25: angular_vel = 0.25
+                elif -0.25 < angular_vel < 0: angular_vel = -0.25
+                twist.linear.x = 0.1
+                twist.angular.z = angular_vel
+            cv2.putText(debug_overlay, 'STATE: PARKING_TURN', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                
+        elif self.state == "PARKING_FORWARD":
+            if time.time() < self.maneuver_end_time:
+                twist.linear.x = 0.15
+                twist.angular.z = 0.0
+            else:
+                self.get_logger().info('Parked successfully. Stopping.')
+                self.state = "STOPPED"
+            cv2.putText(debug_overlay, 'STATE: PARKING_FORWARD', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                
+        elif self.state == "STOPPED":
+            twist.linear.x = 0.0
+            twist.angular.z = 0.0
+            cv2.putText(debug_overlay, 'STATE: STOPPED', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
         self.publisher_.publish(twist)
 
