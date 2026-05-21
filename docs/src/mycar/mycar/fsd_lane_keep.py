@@ -85,6 +85,11 @@ class FSDLaneKeep(Node):
         self.last_error = 0.0
         self.straight_frame_count = 0
 
+        # ---------- Half-lane width memory ----------
+        # Learned from real L+R measurements. Used to infer center when only 1 edge is visible.
+        self.half_lane_width_px = None    # pixels from edge to center
+        self.half_width_alpha = 0.15      # EMA smoothing (slow update = stable memory)
+
         self.get_logger().info('FSD Lane Keep Node Started (IMU 45-deg search, L+R required).')
 
     # ------------------------------------------------------------------ #
@@ -330,6 +335,13 @@ class FSDLaneKeep(Node):
             measured = right['cx'] - left['cx']
             if img_w * self.min_lane_width_ratio <= measured <= img_w * self.max_lane_width_ratio:
                 lw = self._update_width(roi_idx, measured, img_w)
+                # Update half-lane-width memory with EMA
+                half = measured / 2.0
+                if self.half_lane_width_px is None:
+                    self.half_lane_width_px = half
+                else:
+                    self.half_lane_width_px = (self.half_width_alpha * half
+                                               + (1 - self.half_width_alpha) * self.half_lane_width_px)
                 return {
                     'left': left, 'right': right,
                     'center': (left['cx'] + right['cx']) / 2.0,
@@ -338,15 +350,19 @@ class FSDLaneKeep(Node):
                 }
 
         edge = max(candidates, key=lambda c: c['area'])
+        # Use learned half-lane-width if available, otherwise fall back to default estimate
+        half = self.half_lane_width_px if self.half_lane_width_px is not None else exp_w / 2.0
         ref = self.smoothed_target_x if self.smoothed_target_x else img_w / 2.0
-        if edge['cx'] < ref:
-            center = edge['cx'] + exp_w / 2.0
+        if edge['cx'] < ref:   # Left edge visible -> center is half-width to the right
+            center = edge['cx'] + half
             return {'left': edge, 'right': None, 'center': center,
-                    'cy': edge['cy'], 'width': exp_w, 'both': False}
-        else:
-            center = edge['cx'] - exp_w / 2.0
+                    'cy': edge['cy'], 'width': half * 2, 'both': False,
+                    'inferred_side': 'L', 'half_px': half}
+        else:                  # Right edge visible -> center is half-width to the left
+            center = edge['cx'] - half
             return {'left': None, 'right': edge, 'center': center,
-                    'cy': edge['cy'], 'width': exp_w, 'both': False}
+                    'cy': edge['cy'], 'width': half * 2, 'both': False,
+                    'inferred_side': 'R', 'half_px': half}
 
     # ------------------------------------------------------------------ #
     # Lane-width bookkeeping
@@ -429,10 +445,32 @@ class FSDLaneKeep(Node):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 1)
 
         if lane['left'] is not None and lane['right'] is not None:
+            # Both edges: draw solid line L-R and show measured half-width
             cv2.line(debug,
                      (int(lane['left']['cx']), int(lane['left']['cy'])),
                      (int(lane['right']['cx']), int(lane['right']['cy'])),
                      (0, 255, 255), 2)
+            half_px = (lane['right']['cx'] - lane['left']['cx']) / 2.0
+            cv2.putText(debug, f'hw:{int(half_px)}px',
+                        (cx + 8, cy - 12),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.40, (0, 255, 255), 1)
+        else:
+            # Single edge: draw dashed arrow from edge to inferred center
+            inferred_side = lane.get('inferred_side', '?')
+            half_px = lane.get('half_px', 0)
+            edge_cx = int(lane['left']['cx']) if lane['left'] else int(lane['right']['cx'])
+            edge_cy = cy
+            # Draw dashed line from edge to inferred center
+            num_dashes = 6
+            for i in range(num_dashes):
+                t0 = i / num_dashes
+                t1 = (i + 0.5) / num_dashes
+                x0 = int(edge_cx + (cx - edge_cx) * t0)
+                x1 = int(edge_cx + (cx - edge_cx) * t1)
+                cv2.line(debug, (x0, edge_cy), (x1, edge_cy), (0, 200, 255), 2)
+            cv2.putText(debug, f'{inferred_side}-edge  hw:{int(half_px)}px',
+                        (min(edge_cx, cx), edge_cy - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.40, (0, 200, 255), 1)
 
 
 def main(args=None):
