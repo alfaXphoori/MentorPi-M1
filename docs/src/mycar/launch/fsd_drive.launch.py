@@ -1,31 +1,67 @@
 import os
 from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
+
 from launch_ros.actions import Node
+from launch import LaunchDescription, LaunchService
+from launch.substitutions import LaunchConfiguration
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, OpaqueFunction
+
+def launch_setup(context):
+    compiled = os.environ.get('need_compile', 'False')
+    start = LaunchConfiguration('start', default='true')
+    start_arg = DeclareLaunchArgument('start', default_value=start)
+    only_line_follow = LaunchConfiguration('only_line_follow', default='false')
+    only_line_follow_arg = DeclareLaunchArgument('only_line_follow', default_value=only_line_follow)
+    
+    if compiled == 'True':
+        peripherals_package_path = get_package_share_directory('peripherals')
+        controller_package_path = get_package_share_directory('controller')
+        package_share_directory = get_package_share_directory('yolov5_ros2')
+    else:
+        peripherals_package_path = '/home/ubuntu/ros2_ws/src/peripherals'
+        controller_package_path = '/home/ubuntu/ros2_ws/src/driver/controller'
+        package_share_directory = '/home/ubuntu/ros2_ws/src/yolov5_ros2'
+
+    depth_camera_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(peripherals_package_path, 'launch/depth_camera.launch.py')),
+    )
+    
+    controller_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(controller_package_path, 'launch/controller.launch.py')),
+    )
+
+    yolov5_node = Node(
+        package='yolov5_ros2',
+        executable='yolo_detect',
+        output='screen',
+        parameters=[{'classes': ['go', 'right', 'park']},
+            {"device": "cpu",
+            "model": "traffic_signs_640s_7_0",
+            "image_topic": "/ascamera/camera_publisher/rgb0/image",
+            "camera_info_topic": "/camera/camera_info",
+            "camera_info_file": f"{package_share_directory}/config/camera_info.yaml",
+            "pub_result_img": True}]
+    )
+
+    fsd_lane_keep_node = Node(
+        package='mycar',
+        executable='fsd_lane_keep',
+        output='screen',
+        parameters=[{'start': start}, {'only_line_follow': only_line_follow}],
+    )
+
+    return [start_arg,
+            only_line_follow_arg,
+            depth_camera_launch,
+            controller_launch,
+            yolov5_node, 
+            fsd_lane_keep_node,
+            ]
 
 def generate_launch_description():
     return LaunchDescription([
-        # 1. Lane Keeping Node (Eye)
-        Node(
-            package='mycar',
-            executable='lane_keep_node',
-            name='lane_keep',
-            output='screen'
-        ),
-        
-        # 2. Lidar Avoidance Node (Safety/Dodge - Priority High)
-        Node(
-            package='mycar',
-            executable='lidar_avoidance_node',
-            name='lidar_avoid',
-            output='screen'
-        ),
-        
-        # 3. Mission Manager (Brain)
-        Node(
-            package='mycar',
-            executable='mission_manager',
-            name='mission_manager',
-            output='screen'
-        )
+        OpaqueFunction(function = launch_setup)
     ])
