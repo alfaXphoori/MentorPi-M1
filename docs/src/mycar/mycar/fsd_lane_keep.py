@@ -52,14 +52,14 @@ class FSDLaneKeep(Node):
 
         # ---------- Control ----------
         self.lookahead_ratio = 0.76
-        self.min_speed = 0.07
+        self.min_speed = 0.05
         self.base_speed = 0.14
         self.max_speed = 0.22
-        self.search_turn_speed = 0.45
-        self.max_angular_speed = 0.90
+        self.search_turn_speed = 0.80
+        self.max_angular_speed = 1.80
 
-        self.kp = 0.008
-        self.kd = 0.003
+        self.kp = 0.012
+        self.kd = 0.004
         self.target_smoothing = 0.35
 
         self.straight_error_thresh = 0.08
