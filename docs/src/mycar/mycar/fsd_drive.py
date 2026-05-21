@@ -70,6 +70,7 @@ class FsdDriveNode(Node):
         # ---- publishers / subscribers ---- #
         self.publisher_  = self.create_publisher(Twist, '/controller/cmd_vel', 10)
         self.debug_pub   = self.create_publisher(Image, '/lane_keep_full_debug', 10)
+        self.yolo_debug_pub = self.create_publisher(Image, '/fsd_yolo_debug', 10)
 
         self.cam_sub = self.create_subscription(
             Image,
@@ -82,6 +83,9 @@ class FsdDriveNode(Node):
         )
         self.yolo_sub = self.create_subscription(
             ObjectsInfo, '/yolov5_ros2/object_detect', self.yolo_callback, 10
+        )
+        self.yolo_img_sub = self.create_subscription(
+            Image, '/yolov5_ros2/result_img', self.yolo_image_callback, 10
         )
         self.bridge = CvBridge()
 
@@ -182,6 +186,20 @@ class FsdDriveNode(Node):
                     # user specifically requested to keep following lane ("เกาะเส้นตามเดิม")
                     # self.get_logger().info('Sign: Go Straight detected. Staying in lane.')
                     break
+
+    # ----------------------------------------------------------------------- #
+    # YOLO Image Debug callback
+    # ----------------------------------------------------------------------- #
+    def yolo_image_callback(self, msg: Image):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            status = f"State: {self.state}"
+            color = (0, 255, 0) if self.state == "FOLLOW_LANE" else (0, 0, 255)
+            cv2.putText(cv_image, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+            debug_msg = self.bridge.cv2_to_imgmsg(cv_image, "bgr8")
+            self.yolo_debug_pub.publish(debug_msg)
+        except Exception as e:
+            pass
 
     # ----------------------------------------------------------------------- #
     # Camera callback  (main loop)
