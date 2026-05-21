@@ -52,11 +52,11 @@ class FSDLaneKeep(Node):
 
         # ---------- Control ----------
         self.lookahead_ratio = 0.76
-        self.min_speed = 0.06
-        self.base_speed = 0.15
-        self.max_speed = 0.22
-        self.search_turn_speed = 0.70
-        self.max_angular_speed = 1.50
+        self.min_speed = 0.04          # ดรอปความเร็วต่ำสุดให้ช้าลงเวลาเข้าโค้ง
+        self.base_speed = 0.12         # ลดความเร็วพื้นฐานลง
+        self.max_speed = 0.18          # ลดความเร็วทางตรงสูงสุดลง
+        self.search_turn_speed = 0.60
+        self.max_angular_speed = 1.10  # ลดวงเลี้ยวสูงสุดไม่ให้หักพวงมาลัยรุนแรงไป
 
         # Tuned for smoothness: lower kp for gentle steering, higher kd to stop oscillation
         self.kp = 0.004
