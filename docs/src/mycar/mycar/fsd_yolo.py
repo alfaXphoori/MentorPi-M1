@@ -18,7 +18,6 @@ from geometry_msgs.msg import Twist
 from interfaces.msg import ObjectsInfo
 from std_srvs.srv import SetBool, Trigger
 from sdk.common import colors, plot_one_box
-from mycar import fsd_lane_detect as lane_detect
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
 from ros_robot_controller_msgs.msg import BuzzerState, SetPWMServoState, PWMServoState
@@ -44,7 +43,10 @@ class FsdYoloNode(Node):
         self.colors = common.Colors()
         
         self.machine_type = os.environ.get('MACHINE_TYPE')
-        self.lane_detect = lane_detect.LaneDetector("yellow")
+
+        # Subscribe to lane_vel from fsd_lane_keep.py
+        self.lane_sub = self.create_subscription(Twist, '/lane_vel', self.lane_callback, 10)
+        self.lane_cmd = Twist()
 
         self.mecanum_pub = self.create_publisher(Twist, '/controller/cmd_vel', 1)
         self.servo_state_pub = self.create_publisher(SetPWMServoState, 'ros_robot_controller/pwm_servo/set_state', 1)
@@ -171,6 +173,9 @@ class FsdYoloNode(Node):
             self.image_queue.get()
         self.image_queue.put(rgb_image)
     
+    def lane_callback(self, msg):
+        self.lane_cmd = msg
+
     def park_action(self):
         if self.machine_type == 'MentorPi_Mecanum': 
             twist = Twist()
@@ -227,10 +232,7 @@ class FsdYoloNode(Node):
             result_image = image.copy()
             if self.start:
                 h, w = image.shape[:2]
-                binary_image = self.lane_detect.get_binary(image)
                 twist = Twist()
-
-                twist.linear.x = self.normal_speed
 
                 if 0 < self.park_x:
                     self.count_park += 1  
@@ -242,34 +244,7 @@ class FsdYoloNode(Node):
                 else:
                     self.count_park = 0  
 
-                # line following processing
-                result_image, lane_angle, lane_x = self.lane_detect(binary_image, image.copy())
-                if lane_x >= 0 and not self.stop:  
-                    if lane_x > 150:  
-                        self.count_turn += 1
-                        if self.count_turn > 5 and not self.start_turn:
-                            self.start_turn = True
-                            self.count_turn = 0
-                            self.start_turn_time_stamp = time.time()
-                        if self.machine_type != 'MentorPi_Acker':
-                            twist.angular.z = -0.45 
-                        else:
-                            twist.angular.z = twist.linear.x * math.tan(-0.5061) / 0.145
-                    else:  
-                        self.count_turn = 0
-                        if time.time() - self.start_turn_time_stamp > 2 and self.start_turn:
-                            self.start_turn = False
-                        if not self.start_turn:
-                            self.pid.SetPoint = 130 
-                            self.pid.update(lane_x)
-                            if self.machine_type != 'MentorPi_Acker':
-                                twist.angular.z = common.set_range(self.pid.output, -0.1, 0.1)
-                            else:
-                                twist.angular.z = twist.linear.x * math.tan(common.set_range(self.pid.output, -0.1, 0.1)) / 0.145
-                        else:
-                            if self.machine_type == 'MentorPi_Acker':
-                                twist.angular.z = 0.15 * math.tan(-0.5061) / 0.145
-                    
+                if not self.stop:  
                     if self.turn_right:
                         self.get_logger().info('\033[1;33mAction: Turn Right\033[0m')
                         self.turn_right = False
@@ -277,9 +252,9 @@ class FsdYoloNode(Node):
                         self.get_logger().info('\033[1;33mAction: Go Straight\033[0m')
                         self.go_straight = False
                         
+                    # ใช้ Twist จาก fsd_lane_keep.py (ที่ subscribe มาจาก /lane_vel) แทนการคำนวณเอง
+                    twist = self.lane_cmd
                     self.mecanum_pub.publish(twist)  
-                else:
-                    self.pid.clear()
 
                 if self.objects_info:
                     for i in self.objects_info:
