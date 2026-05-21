@@ -78,13 +78,13 @@ class ColorControlNode(Node):
 
         # 5. Visual Feedback (Optional - disable for maximum speed)
         # Draw on a small preview only to save CPU
-        preview = cv2.resize(roi, (160, 160)) # Zoomed in ROI
-        color = (0, 255, 0) if self.is_moving else (0, 0, 255)
-        cv2.putText(preview, f"H:{int(h_val)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
-        cv2.rectangle(preview, (0,0), (159,159), color, 4)
-        
-        cv2.imshow("Ultra-Fast ROI", preview)
-        cv2.waitKey(1)
+        # preview = cv2.resize(roi, (160, 160)) # Zoomed in ROI
+        # color = (0, 255, 0) if self.is_moving else (0, 0, 255)
+        # cv2.putText(preview, f"H:{int(h_val)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+        # cv2.rectangle(preview, (0,0), (159,159), color, 4)
+        # 
+        # cv2.imshow("Ultra-Fast ROI", preview)
+        # cv2.waitKey(1)
 
 def main(args=None):
     rclpy.init(args=args)
@@ -94,7 +94,7 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        cv2.destroyAllWindows()
+        # cv2.destroyAllWindows()
         node.destroy_node()
         rclpy.shutdown()
 

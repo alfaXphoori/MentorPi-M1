@@ -14,8 +14,8 @@ class FSDLidarSafety(Node):
         self.subscription = self.create_subscription(LaserScan, '/scan_raw', self.scan_callback, 10)
         
         self.declare_parameter('max_speed', 0.12)
-        self.declare_parameter('danger_dist', 0.3)
-        self.declare_parameter('avoid_dist', 0.6)
+        self.declare_parameter('danger_dist', 0.1)
+        self.declare_parameter('avoid_dist', 0.25)
         
         self.get_logger().info('FSD Lidar Safety Node Started.')
 
