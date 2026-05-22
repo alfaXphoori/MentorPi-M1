@@ -436,54 +436,43 @@ graph TD
 ---
 
 ## 🏁 Phase 5: The Full Self-Driving (FSD) System
-**Objective:** Orchestrate all nodes into a unified autonomous stack.
+**Objective:** Orchestrate computer vision, IMU, and deep learning into a unified autonomous stack.
 
-The ultimate goal is to launch the complete FSD stack, where lane following, LiDAR safety, and YOLO-based sign logic are combined under one mission manager.
+The ultimate goal is to launch the complete FSD stack, where multi-ROI lane centering, IMU-based lane searching, and YOLO-based sign logic (Turn Right, Parking) are combined into a single sophisticated control node.
 
 **Required Node Graph:**
 ```mermaid
 graph TD
-    Bringup["bringup.launch.py"] --> Camera["ASCamera Driver"]
-    Bringup --> Lidar["LiDAR Driver"]
+    Bringup["fsd_drive.launch.py"] --> Camera["ASCamera Driver"]
     Bringup --> Base["Robot Base Driver"]
+    Bringup --> IMU["IMU Driver"]
 
     Camera --> ImageTopic["/ascamera/camera_publisher/rgb0/image"]
-    ImageTopic --> LaneKeep["fsd_lane_keep.py"]
+    ImageTopic --> FSDDrive["fsd_drive.py"]
     ImageTopic --> YoloDetect["yolov5_ros2 detector"]
 
-    Lidar --> Scan["/scan_raw"]
-    Scan --> LidarSafety["fsd_lidar_safety.py"]
+    IMU --> ImuTopic["/imu"]
+    ImuTopic --> FSDDrive
 
-    LaneKeep --> LaneVel["/fsd/lane_vel"]
     YoloDetect --> DetectTopic["/yolov5_ros2/object_detect"]
-    DetectTopic --> YoloLogic["yolo_logic_node.py"]
-    YoloLogic --> YoloVel["/yolo_vel"]
-    LidarSafety --> AvoidVel["/fsd/avoid_vel"]
-    LidarSafety --> SafetyStatus["/fsd/safety_status"]
-
-    LaneVel --> Mission["fsd_mission_manager.py"]
-    YoloVel --> Mission
-    AvoidVel --> Mission
-    SafetyStatus --> Mission
-    Mission --> CmdVel["/cmd_vel"]
+    DetectTopic --> FSDDrive
+    
+    FSDDrive --> CmdVel["/controller/cmd_vel"]
     CmdVel --> Base
 ```
 
-*   **Main Launch File:** `~/ros2_ws/src/mycar/launch/fsd_master.launch.py`
-*   **Core Files in This Phase:**
-    *   `~/ros2_ws/src/mycar/mycar/fsd_lane_keep.py`
-    *   `~/ros2_ws/src/mycar/mycar/fsd_lidar_safety.py`
-    *   `~/ros2_ws/src/mycar/mycar/fsd_mission_manager.py`
+*   **Main Launch File:** `~/ros2_ws/src/mycar/launch/fsd_drive.launch.py`
+*   **Core File in This Phase:**
+    *   `~/ros2_ws/src/mycar/mycar/fsd_drive.py`
 *   **Launched Nodes and Topics:**
-    *   `fsd_lane_keep` publishes lane commands to `/fsd/lane_vel`
-    *   `fsd_lidar_safety` publishes avoidance commands to `/fsd/avoid_vel` and safety status to `/fsd/safety_status`
-    *   `fsd_mission_manager` chooses the final command and publishes it to `/cmd_vel`
-    *   `yolo_logic_node` still publishes maneuver commands to `/yolo_vel`
-*   **Priority Rule:** `DANGER_STOP` > `AVOIDING` > YOLO maneuver > lane keeping.
+    *   `fsd_drive` subscribes to `/ascamera/camera_publisher/rgb0/image`, `/imu`, and `/yolov5_ros2/object_detect`.
+    *   `fsd_drive` internally manages the state machine (lane tracking, IMU search, and YOLO maneuvers) and publishes directly to `/controller/cmd_vel`.
+    *   `yolo_detect` processes the image and identifies signs (go, right, park).
+*   **Behavior Rule:** YOLO maneuver overrides lane keeping. If the lane is lost, an IMU-based 30-degree search is triggered to find it again.
 *   **Build and Run:**
     ```bash
     cd ~/ros2_ws
     colcon build --packages-select mycar
-    ros2 launch mycar fsd_master.launch.py
+    ros2 launch mycar fsd_drive.launch.py
     ```
-*   **Expected Learning Outcome:** You will understand how multiple autonomous subsystems can share responsibilities and be merged into one final driving command safely.
+*   **Expected Learning Outcome:** You will understand how a unified state-machine can seamlessly switch between perception-based lane centering, IMU search patterns, and AI-driven maneuvers to form a complete autonomous driving loop.
